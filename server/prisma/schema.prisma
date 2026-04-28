@@ -1,0 +1,92 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String?
+  googleId  String?   @unique
+  role      String    @default("customer") // 'customer' or 'admin'
+  address   String?
+  gender    String?
+  whatsapp  String?
+  profilePicUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+}
+
+model Trip {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  destination String
+  date        DateTime
+  price       Float
+  quota       Int
+  image       String?
+  imagePosition String? @default("center")
+  duration    String?
+  rating      Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+  expenses    Expense[]
+}
+
+model Booking {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  tripId      Int
+  pax         Int
+  totalPrice  Float
+  promoCode   String?
+  status      String    @default("pending") // pending, confirmed, cancelled
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  trip        Trip      @relation(fields: [tripId], references: [id])
+  payments    Payment[]
+}
+
+model Payment {
+  id            Int       @id @default(autoincrement())
+  bookingId     Int
+  amount        Float
+  method        String
+  proofUrl      String?
+  status        String    @default("unpaid") // unpaid, pending_verification, paid
+  paymentDate   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  booking       Booking   @relation(fields: [bookingId], references: [id])
+}
+
+model Expense {
+  id          Int       @id @default(autoincrement())
+  tripId      Int
+  itemName    String
+  category    String
+  amount      Float
+  receiptUrl  String?
+  expenseDate DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  trip        Trip      @relation(fields: [tripId], references: [id])
+}
+
+model PromoCode {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  discountAmount  Float
+  discountType    String   @default("flat") // "flat" or "percentage"
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}

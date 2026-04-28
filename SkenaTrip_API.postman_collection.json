@@ -1,0 +1,227 @@
+{
+  "info": {
+    "_postman_id": "aa123b45-67c8-9d0e-1234-56789abcdef0",
+    "name": "Skena Trip API",
+    "description": "Koleksi API Endpoint Backend Skena Trip (Node.js + Express + Prisma)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Seed & Mock",
+      "item": [
+        {
+          "name": "Seed Mock Trips",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/seed",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "seed"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Trips",
+      "item": [
+        {
+          "name": "Get All Trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/trips",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "trips"]
+            }
+          }
+        },
+        {
+          "name": "Get Trip by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/trips/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "trips", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Trip (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Trip Spesial Sumba\",\n  \"description\": \"Eksplorasi budaya dan sabana Sumba.\",\n  \"destination\": \"Sumba, NTT\",\n  \"date\": \"2026-10-10T00:00:00Z\",\n  \"price\": 4500000,\n  \"quota\": 15,\n  \"duration\": \"4D3N\",\n  \"rating\": 4.9\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/trips",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "trips"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Bookings",
+      "item": [
+        {
+          "name": "Checkout Booking",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"tripId\": 1,\n  \"pax\": 2\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/bookings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Get All Bookings (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/bookings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Update Booking Status",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/bookings/1/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "bookings", "1", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Payments",
+      "item": [
+        {
+          "name": "Upload Payment",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": 1,\n  \"amount\": 7000000,\n  \"method\": \"BCA Transfer\",\n  \"proofUrl\": \"https://example.com/receipt-bca.jpg\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/payments",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "payments"]
+            }
+          }
+        },
+        {
+          "name": "Get All Payments (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/payments",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "payments"]
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paid\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/payments/1/verify",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "payments", "1", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Expenses",
+      "item": [
+        {
+          "name": "Add Expense (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": 1,\n  \"itemName\": \"Tiket Masuk Pulau Komodo\",\n  \"category\": \"Tiket Wisata\",\n  \"amount\": 1500000,\n  \"expenseDate\": \"2026-05-15T08:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3001/api/expenses",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "expenses"]
+            }
+          }
+        },
+        {
+          "name": "Get All Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001/api/expenses",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001",
+              "path": ["api", "expenses"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
