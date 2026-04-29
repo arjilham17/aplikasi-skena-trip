@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
 import api from '../../services/api';
 
 const Login = () => {
@@ -9,17 +8,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      const res = await api.post('/auth/google', { token: credentialResponse.credential });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      window.dispatchEvent(new Event('userProfileUpdated'));
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Google login failed');
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,20 +88,6 @@ const Login = () => {
             {isLogin ? 'Masuk' : 'Daftar'}
           </button>
         </form>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
-          <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>ATAU</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google Login Failed')}
-            useOneTap
-          />
-        </div>
 
         <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--text-muted)' }}>
           {isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? '}

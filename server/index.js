@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
-const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
@@ -13,7 +12,6 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 const app = express();
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id');
 const JWT_SECRET = process.env.JWT_SECRET || 'skena-trip-secret-key';
 
 // ── Nodemailer transporter ──────────────────────────────────────────────────
@@ -161,48 +159,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/google', async (req, res) => {
-  try {
-    const { token } = req.body;
-    const decoded = jwt.decode(token); 
-    if (!decoded) return res.status(400).json({ error: 'Invalid Google token' });
-    
-    const email = decoded.email;
-    const name = decoded.name;
-    const googleId = decoded.sub; 
-
-    if (!email) return res.status(400).json({ error: 'Email not found in token' });
-
-    let user = await prisma.user.findFirst({
-      where: { OR: [{ googleId: googleId }, { email: email }] }
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: { name: name || 'Google User', email: email, googleId: googleId, role: 'customer' }
-      });
-    } else if (!user.googleId) {
-      user = await prisma.user.update({
-        where: { email: email },
-        data: { googleId: googleId }
-      });
-    }
-
-    const sessionToken = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      message: 'Login/Register successful',
-      token: sessionToken,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // ── Forgot Password ────────────────────────────────────────────────────────
 app.post('/api/auth/forgot-password', async (req, res) => {
@@ -471,6 +427,15 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
     const { tripId, pax, promoCode } = req.body;
     const userId = req.user.userId; // Get from JWT
     
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.address || !user.whatsapp || !user.gender || !user.name) {
+      return res.status(400).json({ 
+        error: 'Profil belum lengkap.', 
+        incompleteProfile: true,
+        message: 'Mohon lengkapi profil Anda (Alamat, Jenis Kelamin, dan WhatsApp) sebelum melakukan pemesanan.' 
+      });
+    }
+
     const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) } });
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
     
