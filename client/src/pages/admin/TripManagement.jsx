@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Edit, Trash, Plus, X, DollarSign, Clock } from 'lucide-react';
+import { Edit, Trash, Plus, X, DollarSign, Clock, Copy } from 'lucide-react';
 import ConfirmModal from '../../components/ConfirmModal';
 
 const TripManagement = () => {
@@ -110,6 +110,17 @@ const TripManagement = () => {
     }
   };
 
+  const handleDuplicate = async (id) => {
+    if (!window.confirm('Duplikasi trip ini? Semua data termasuk itinerary akan disalin.')) return;
+    try {
+      await api.post(`/trips/${id}/duplicate`);
+      alert('Trip berhasil diduplikasi!');
+      fetchTrips();
+    } catch (err) {
+      alert('Gagal menduplikasi trip');
+    }
+  };
+
   const handleOpenItinerary = async (trip) => {
     try {
       const res = await api.get(`/trips/${trip.id}`);
@@ -194,6 +205,7 @@ const TripManagement = () => {
                 <td>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={() => handleOpenItinerary(trip)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)' }} title="Atur Itinerary"><Clock size={16}/></button>
+                    <button onClick={() => handleDuplicate(trip.id)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)' }} title="Duplikasi Trip"><Copy size={16}/></button>
                     {isSuperAdmin && (
                       <button onClick={() => handleShowFinance(trip.id)} className="btn btn-primary" style={{ padding: '6px', minWidth: 'auto', background: '#059669' }} title="Laporan Keuangan"><DollarSign size={16}/></button>
                     )}
