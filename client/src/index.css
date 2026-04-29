@@ -98,6 +98,42 @@ button { cursor: pointer; border: none; outline: none; font-family: 'Inter', san
 .badge.confirmed, .badge.paid { background: #d1fae5; color: #059669; }
 .badge.cancelled, .badge.unpaid { background: #fee2e2; color: #dc2626; }
 
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .container { padding: 0 16px; }
+  
+  .btn { width: 100%; } /* Stack buttons on small screens if needed */
+  
+  h1 { font-size: 24px !important; }
+  h2 { font-size: 20px !important; }
+  
+  /* Flex direction change for common sections */
+  .flex-responsive { flex-direction: column !important; }
+  .grid-responsive { grid-template-columns: 1fr !important; gap: 16px !important; }
+  
+  /* Dark mode specific fixes */
+  .dark input, .dark textarea, .dark select {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+  }
+  
+  .dark table {
+    color: #f8fafc;
+  }
+  
+  .dark tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .dark .card {
+    background-color: var(--bg-white);
+  }
+
+  /* Specific color overrides for dark mode */
+  .dark .text-muted { color: var(--text-muted); }
+}
+
 /* Print Styles for E-Ticket */
 @media print {
   body * {
@@ -118,4 +154,9 @@ button { cursor: pointer; border: none; outline: none; font-family: 'Inter', san
   .no-print {
     display: none !important;
   }
+}
+
+/* Base text color from variable */
+body {
+  color: var(--text-main);
 }

@@ -90,3 +90,23 @@ model PromoCode {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
 }
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SiteSettings {
+  id            Int      @id @default(1)
+  siteName      String   @default("Skena Trip")
+  slogan        String   @default("Teman Perjalanan Skena Kamu")
+  logoUrl       String?
+  contactEmail  String?  @default("info@skenatrip.com")
+  contactPhone  String?  @default("08123456789")
+  address       String?  @default("Jakarta, Indonesia")
+  updatedAt     DateTime @updatedAt
+}

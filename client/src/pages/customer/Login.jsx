@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import api from '../../services/api';
 
@@ -86,6 +86,16 @@ const Login = () => {
             onChange={e => setFormData({...formData, password: e.target.value})}
             required 
           />
+          {isLogin && (
+            <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+              <Link
+                to="/forgot-password"
+                style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: '600' }}
+              >
+                Lupa Password?
+              </Link>
+            </div>
+          )}
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }}>
             {isLogin ? 'Masuk' : 'Daftar'}
           </button>
