@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
+import Lottie from 'lottie-react';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [loginAnim, setLoginAnim] = useState(null);
+
+  useEffect(() => {
+    fetch('https://lottie.host/85955b74-3404-4f05-874b-c40787e9545f/LAti6G00vN.json')
+      .then(res => res.json())
+      .then(data => setLoginAnim(data))
+      .catch(err => console.error('Lottie error:', err));
+  }, []);
 
 
   const handleSubmit = async (e) => {
@@ -34,6 +43,9 @@ const Login = () => {
   return (
     <div style={{ paddingTop: '120px', minHeight: '80vh', display: 'flex', justifyContent: 'center' }}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '32px', alignSelf: 'flex-start' }}>
+        <div style={{ width: '120px', height: '120px', margin: '0 auto 16px auto' }}>
+          {loginAnim && <Lottie animationData={loginAnim} loop={true} />}
+        </div>
         <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>
           {isLogin ? 'Selamat Datang Kembali' : 'Daftar Akun Baru'}
         </h1>

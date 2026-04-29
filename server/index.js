@@ -418,6 +418,36 @@ app.delete('/api/trips/:id', authenticateToken, isSuperAdmin, async (req, res) =
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
+app.post('/api/trips/:id/duplicate', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const originalId = parseInt(req.params.id);
+    const original = await prisma.trip.findUnique({ 
+      where: { id: originalId },
+      include: { itinerary: true }
+    });
+    
+    if (!original) return res.status(404).json({ error: 'Trip asal tidak ditemukan' });
+
+    // Buat data baru dari original, ubah judul
+    const { id, createdAt, updatedAt, itinerary, ...data } = original;
+    const duplicatedTrip = await prisma.trip.create({
+      data: {
+        ...data,
+        title: `${original.title} (Duplikat)`,
+        // Itinerary juga diduplikasi jika ada
+        itinerary: {
+          create: itinerary.map(({ id, tripId, ...item }) => item)
+        }
+      }
+    });
+
+    await createActivityLog(req.user.userId, 'DUPLICATE_TRIP', `Admin menduplikasi trip: ${original.title} (ID Baru: ${duplicatedTrip.id})`);
+    res.status(201).json(duplicatedTrip);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // ==========================================
 // BOOKINGS API
 // ==========================================

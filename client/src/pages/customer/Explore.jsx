@@ -2,12 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users } from 'lucide-react';
+import Lottie from 'lottie-react';
 
 const Explore = () => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
+  const [emptyAnim, setEmptyAnim] = useState(null);
+
+  useEffect(() => {
+    fetch('https://lottie.host/7469795e-1490-449e-b12e-a0e44501a4e1/zLd1MvF3O1.json')
+      .then(res => res.json())
+      .then(data => setEmptyAnim(data))
+      .catch(err => console.error('Lottie error:', err));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -85,8 +94,11 @@ const Explore = () => {
         </div>
       ) : filteredAndSortedTrips.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">
-            <Search size={40} />
+          <div style={{ width: '250px', height: '250px', margin: '0 auto' }}>
+            <Lottie 
+              animationData={emptyAnim} 
+              loop={true}
+            />
           </div>
           <h2>Trip tidak ditemukan</h2>
           <p style={{ maxWidth: '400px', margin: '0 auto' }}>
