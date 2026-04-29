@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Compass, User, LogOut, Sun, Moon, Menu, X } from 'lucide-react';
 import api from '../services/api';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 const CustomerLayout = () => {
   const navigate = useNavigate();
@@ -51,6 +52,8 @@ const CustomerLayout = () => {
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
+
+  const { pathname } = useLocation();
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -165,7 +168,12 @@ const CustomerLayout = () => {
         )}
       </header>
       
-      <main>
+      <main style={{ paddingTop: pathname === '/' ? '0' : '70px' }}>
+        {pathname !== '/' && (
+          <div className="container" style={{ marginTop: '32px' }}>
+            <Breadcrumbs />
+          </div>
+        )}
         <Outlet />
       </main>
       

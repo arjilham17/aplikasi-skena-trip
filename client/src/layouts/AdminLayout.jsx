@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Plane, Receipt, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, Menu, X, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Plane, Receipt, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, Menu, X, Sun, Moon, History, Wallet, AlertTriangle, Check } from 'lucide-react';
 import api from '../services/api';
 
 const AdminLayout = () => {
@@ -33,36 +33,10 @@ const AdminLayout = () => {
   const initialUser = userStr ? JSON.parse(userStr) : null;
   const [profileData, setProfileData] = useState(initialUser);
   const [pendingCount, setPendingCount] = useState(0);
+  const [alertCount, setAlertCount] = useState(0);
+  const [alerts, setAlerts] = useState([]);
+  const [showAlerts, setShowAlerts] = useState(false);
   const [siteSettings, setSiteSettings] = useState(null);
-
-  useEffect(() => {
-    const loadProfile = () => {
-       const storedUser = localStorage.getItem('user');
-       if (storedUser) setProfileData(JSON.parse(storedUser));
-       else setProfileData(null);
-    };
-
-    if (initialUser) {
-      api.get('/users/profile').then(res => {
-         setProfileData(res.data);
-         localStorage.setItem('user', JSON.stringify(res.data));
-      }).catch(console.error);
-      
-      // Initial fetch for pending count
-      fetchPendingCount();
-      api.get('/settings').then(res => setSiteSettings(res.data)).catch(console.error);
-    }
-
-    const interval = setInterval(() => {
-      if (initialUser) fetchPendingCount();
-    }, 10000); // Check every 10 seconds
-
-    window.addEventListener('userProfileUpdated', loadProfile);
-    return () => {
-      window.removeEventListener('userProfileUpdated', loadProfile);
-      clearInterval(interval);
-    };
-  }, []);
 
   const fetchPendingCount = async () => {
     try {
@@ -79,6 +53,48 @@ const AdminLayout = () => {
       console.error('Failed to fetch pending count', err);
     }
   };
+
+  const fetchAlertsData = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isSuper = user.role === 'superadmin' || user.role === 'super_admin';
+    if (isSuper) {
+      api.get('/admin/notifications/unread-count').then(res => setAlertCount(res.data.count)).catch(console.error);
+      api.get('/admin/notifications').then(res => setAlerts(res.data)).catch(console.error);
+    }
+  };
+
+  useEffect(() => {
+    const loadProfile = () => {
+       const storedUser = localStorage.getItem('user');
+       if (storedUser) setProfileData(JSON.parse(storedUser));
+       else setProfileData(null);
+    };
+
+    if (initialUser) {
+      api.get('/users/profile').then(res => {
+         setProfileData(res.data);
+         localStorage.setItem('user', JSON.stringify(res.data));
+      }).catch(console.error);
+      
+      // Initial fetch
+      fetchPendingCount();
+      fetchAlertsData();
+      api.get('/settings').then(res => setSiteSettings(res.data)).catch(console.error);
+    }
+
+    const interval = setInterval(() => {
+      if (initialUser) {
+        fetchPendingCount();
+        fetchAlertsData();
+      }
+    }, 10000); // Check every 10 seconds
+
+    window.addEventListener('userProfileUpdated', loadProfile);
+    return () => {
+      window.removeEventListener('userProfileUpdated', loadProfile);
+      clearInterval(interval);
+    };
+  }, []);
 
   if (!initialUser || !['admin', 'superadmin', 'super_admin'].includes(initialUser.role)) {
     return <Navigate to="/" replace />;
@@ -98,9 +114,11 @@ const AdminLayout = () => {
     { name: 'Manajemen Trip',      path: '/admin/trips',  icon: <Plane size={20} /> },
     { name: 'Kode Promo',          path: '/admin/promos',    icon: <Ticket size={20} /> },
     { name: 'Manifest Peserta',    path: '/admin/manifest',  icon: <ClipboardList size={20} /> },
+    { name: 'Pengeluaran Trip',    path: '/admin/expenses',  icon: <Wallet size={20} /> },
     ...(isSuperAdmin ? [
       { name: 'Manajemen Pengguna', path: '/admin/users', icon: <Users size={20} /> },
-      { name: 'Pengaturan Situs',   path: '/admin/settings', icon: <Settings size={20} /> }
+      { name: 'Pengaturan Situs',   path: '/admin/settings', icon: <Settings size={20} /> },
+      { name: 'Log Aktivitas',     path: '/admin/logs', icon: <History size={20} /> }
     ] : []),
   ];
 
@@ -163,6 +181,61 @@ const AdminLayout = () => {
             <button onClick={toggleTheme} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
+            
+            {isSuperAdmin && (
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setShowAlerts(!showAlerts)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative' }}>
+                  <AlertTriangle size={22} color={alertCount > 0 ? '#e88915' : 'var(--text-muted)'} />
+                  {alertCount > 0 && (
+                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#e88915', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>{alertCount}</span>
+                  )}
+                </button>
+                {showAlerts && (
+                  <div className="card" style={{ position: 'absolute', top: '40px', right: 0, width: '320px', maxHeight: '400px', overflowY: 'auto', zIndex: 100, padding: '16px', boxShadow: 'var(--shadow-lg)' }}>
+                    <h4 style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Peringatan Sistem
+                      <button onClick={() => setShowAlerts(false)} style={{ background: 'transparent', border: 'none' }}><X size={16} /></button>
+                    </h4>
+                    {alerts.length === 0 ? (
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>Tidak ada peringatan.</p>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        {alerts.map(alert => (
+                          <div 
+                            key={alert.id} 
+                            onClick={async () => {
+                              if (!alert.isRead) {
+                                await api.put(`/admin/notifications/${alert.id}/read`);
+                                fetchAlertsData();
+                              }
+                            }}
+                            style={{ 
+                              padding: '12px', 
+                              borderRadius: '8px', 
+                              background: alert.isRead ? 'transparent' : 'var(--bg-light)', 
+                              border: '1px solid var(--border)',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              opacity: alert.isRead ? 0.6 : 1
+                            }}
+                          >
+                            <div style={{ fontWeight: '700', marginBottom: '4px', color: alert.type === 'DELETION' ? '#dc2626' : '#e88915', display: 'flex', justifyContent: 'space-between' }}>
+                              {alert.type === 'DELETION' ? 'Penghapusan Data' : 'Pengeluaran Tinggi'}
+                              {alert.isRead && <Check size={14} color="#059669" />}
+                            </div>
+                            {alert.message}
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                              {new Date(alert.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/admin')}>
               <Bell size={22} color={pendingCount > 0 ? '#dc2626' : 'var(--text-muted)'} />
               {pendingCount > 0 && (

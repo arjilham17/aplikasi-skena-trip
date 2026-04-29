@@ -21,6 +21,8 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   bookings  Booking[]
+  logs      ActivityLog[]
+  reviews   Review[]
 }
 
 model Trip {
@@ -39,6 +41,8 @@ model Trip {
   updatedAt   DateTime  @updatedAt
   bookings    Booking[]
   expenses    Expense[]
+  reviews     Review[]
+  itinerary   ItineraryItem[]
 }
 
 model Booking {
@@ -101,12 +105,61 @@ model PasswordResetToken {
 }
 
 model SiteSettings {
-  id            Int      @id @default(1)
-  siteName      String   @default("Skena Trip")
-  slogan        String   @default("Teman Perjalanan Skena Kamu")
-  logoUrl       String?
-  contactEmail  String?  @default("info@skenatrip.com")
-  contactPhone  String?  @default("08123456789")
-  address       String?  @default("Jakarta, Indonesia")
-  updatedAt     DateTime @updatedAt
+  id               Int      @id @default(1)
+  siteName         String   @default("Skena Trip")
+  slogan           String   @default("Teman Perjalanan Skena Kamu")
+  logoUrl          String?
+  heroTitle        String   @default("Temukan Petualangan Skena Kamu")
+  heroSubtitle     String   @default("Jelajahi destinasi tersembunyi dengan gaya hidup skena yang autentik.")
+  heroImages       HeroImage[]
+  contactEmail     String?  @default("info@skenatrip.com")
+  contactPhone     String?  @default("08123456789")
+  address          String?  @default("Jakarta, Indonesia")
+  expenseThreshold Float    @default(1000000) // Default 1jt
+  updatedAt        DateTime @updatedAt
+}
+
+model HeroImage {
+  id             Int          @id @default(autoincrement())
+  url            String
+  siteSettingsId Int
+  siteSettings   SiteSettings @relation(fields: [siteSettingsId], references: [id])
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model AdminNotification {
+  id        Int      @id @default(autoincrement())
+  type      String   // 'DELETION', 'HIGH_EXPENSE', etc.
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int
+  comment   String
+  imageUrl  String?
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  tripId    Int
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ItineraryItem {
+  id          Int      @id @default(autoincrement())
+  time        String
+  activity    String
+  description String?
+  tripId      Int
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
 }

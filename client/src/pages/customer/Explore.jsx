@@ -1,64 +1,143 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users } from 'lucide-react';
 
 const Explore = () => {
   const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
 
   useEffect(() => {
-    api.get('/trips').then(res => setTrips(res.data)).catch(console.error);
+    setLoading(true);
+    api.get('/trips')
+      .then(res => setTrips(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const filteredTrips = trips.filter(trip => 
-    trip.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    trip.destination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAndSortedTrips = trips
+    .filter(trip => {
+      return trip.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             trip.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price-low') return a.price - b.price;
+      if (sortBy === 'date-near') return new Date(a.date) - new Date(b.date);
+      if (sortBy === 'popular') return (b.currentPax || 0) - (a.currentPax || 0);
+      return new Date(b.createdAt) - new Date(a.createdAt); // newest
+    });
 
   return (
     <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', minHeight: '80vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <h1 style={{ margin: 0 }}>Katalog Trip</h1>
+      <div style={{ marginBottom: '40px' }}>
+        <h1 style={{ marginBottom: '24px' }}>Katalog Trip</h1>
         
-        {/* Search Bar */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
-          <Search size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input 
-            type="text" 
-            placeholder="Cari nama atau destinasi..." 
-            className="input" 
-            style={{ paddingLeft: '48px', width: '100%', borderRadius: '100px', boxShadow: 'var(--shadow-sm)' }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }} className="grid-responsive">
+          {/* Search Bar */}
+          <div style={{ position: 'relative' }}>
+            <Search size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text" 
+              placeholder="Cari nama atau destinasi..." 
+              className="input" 
+              style={{ paddingLeft: '48px', width: '100%', borderRadius: '12px' }}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Sorting */}
+          <div style={{ position: 'relative' }}>
+            <SortAsc size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <select 
+              className="input" 
+              style={{ paddingLeft: '40px', borderRadius: '12px' }}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="newest">Terbaru</option>
+              <option value="price-low">Harga Termurah</option>
+              <option value="date-near">Tanggal Terdekat</option>
+              <option value="popular">Terpopuler</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {filteredTrips.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '64px', background: 'var(--bg-white)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-          <Search size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }} />
-          <h3 style={{ color: 'var(--text-main)' }}>Trip tidak ditemukan</h3>
-          <p style={{ color: 'var(--text-muted)' }}>Coba gunakan kata kunci pencarian destinasi yang lain.</p>
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="card" style={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
+              <div className="skeleton" style={{ height: '220px', width: '100%' }}></div>
+              <div style={{ padding: '24px', flex: 1 }}>
+                <div className="skeleton skeleton-text" style={{ width: '40%' }}></div>
+                <div className="skeleton skeleton-title" style={{ width: '90%' }}></div>
+                <div className="skeleton skeleton-text" style={{ width: '60%', marginTop: '16px' }}></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
+                  <div className="skeleton" style={{ height: '32px', width: '80px' }}></div>
+                  <div className="skeleton" style={{ height: '32px', width: '60px' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredAndSortedTrips.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Search size={40} />
+          </div>
+          <h2>Trip tidak ditemukan</h2>
+          <p style={{ maxWidth: '400px', margin: '0 auto' }}>
+            Kami tidak menemukan perjalanan yang cocok dengan pencarian atau filter Anda. Coba gunakan kata kunci lain.
+          </p>
+          <button className="btn btn-primary" onClick={() => { setSearchTerm(''); setSortBy('newest'); }}>
+            Reset Pencarian
+          </button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
-          {filteredTrips.map(trip => (
+          {filteredAndSortedTrips.map(trip => (
             <div key={trip.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-              <div style={{ height: '200px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
-                <img src={trip.image ? `http://localhost:3001${trip.image}` : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`} alt={trip.title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} />
+              <div style={{ height: '220px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
+                <img 
+                  src={trip.image ? `http://localhost:3001${trip.image}` : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`} 
+                  alt={trip.title} 
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
+                />
+                
+                {/* Labels */}
+                <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '8px' }}>
+                   <div style={{ background: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', backdropFilter: 'blur(4px)' }}>
+                      {trip.duration}
+                   </div>
+                </div>
+
                 {trip.currentPax >= trip.quota && (
-                  <div style={{ position: 'absolute', top: '16px', right: '16px', background: '#dc2626', color: 'white', padding: '4px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                  <div style={{ position: 'absolute', top: '12px', right: '12px', background: '#dc2626', color: 'white', padding: '4px 12px', borderRadius: '100px', fontSize: '11px', fontWeight: 'bold' }}>
                     PENUH
                   </div>
                 )}
               </div>
               <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', marginBottom: '8px' }}><MapPin size={16}/> {trip.destination}</div>
-                <h3 style={{ marginBottom: '16px', flex: 1 }}>{trip.title}</h3>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '18px' }}>Rp {trip.price.toLocaleString()}</span>
-                  <Link to={`/trip/${trip.id}`} className="btn btn-primary" style={{ padding: '8px 16px' }}>Detail</Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', marginBottom: '8px', fontSize: '13px' }}>
+                  <MapPin size={14}/> {trip.destination}
+                </div>
+                <h3 style={{ marginBottom: '16px', flex: 1, fontSize: '18px', lineHeight: '1.4' }}>{trip.title}</h3>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={14}/> {new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}</div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={14}/> {trip.currentPax}/{trip.quota} Pax</div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mulai dari</span>
+                    <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '18px' }}>Rp {trip.price.toLocaleString()}</span>
+                  </div>
+                  <Link to={`/trip/${trip.id}`} className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}>Detail</Link>
                 </div>
               </div>
             </div>
