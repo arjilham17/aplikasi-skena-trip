@@ -523,7 +523,11 @@ app.get('/api/my-bookings', authenticateToken, async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({
       where: { userId: req.user.userId },
-      include: { trip: true, payments: true },
+      include: { 
+        trip: { select: { title: true, date: true, duration: true, price: true, image: true } },
+        payments: true,
+        paymentMethod: true
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json(bookings);
@@ -1149,6 +1153,84 @@ app.get('/api/reviews/featured', async (req, res) => {
     });
     res.json(reviews);
   } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// ==========================================
+// PAYMENT METHODS API
+// ==========================================
+
+app.get('/api/payment-methods', async (req, res) => {
+  try {
+    const methods = await prisma.paymentMethod.findMany({ where: { isActive: true } });
+    res.json(methods);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/api/admin/payment-methods', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const methods = await prisma.paymentMethod.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(methods);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+  try {
+    const { name, type, accountName, accountNo, instruction } = req.body;
+    let imageUrl = null;
+    if (req.file) {
+      await optimizeImage(req.file);
+      imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const method = await prisma.paymentMethod.create({
+      data: {
+        name,
+        type,
+        accountName,
+        accountNo,
+        instruction,
+        imageUrl,
+        isActive: true
+      }
+    });
+
+    await createActivityLog(req.user.userId, 'CREATE_PAYMENT_METHOD', `Super Admin membuat metode pembayaran: ${name}`);
+    res.status(201).json(method);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+  try {
+    const { name, type, accountName, accountNo, instruction, isActive } = req.body;
+    let data = {};
+    if (name) data.name = name;
+    if (type) data.type = type;
+    if (accountName !== undefined) data.accountName = accountName;
+    if (accountNo !== undefined) data.accountNo = accountNo;
+    if (instruction !== undefined) data.instruction = instruction;
+    if (isActive !== undefined) data.isActive = isActive === 'true' || isActive === true;
+
+    if (req.file) {
+      await optimizeImage(req.file);
+      data.imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const method = await prisma.paymentMethod.update({
+      where: { id: parseInt(req.params.id) },
+      data
+    });
+
+    await createActivityLog(req.user.userId, 'UPDATE_PAYMENT_METHOD', `Super Admin memperbarui metode pembayaran: ${method.name}`);
+    res.json(method);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.delete('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const method = await prisma.paymentMethod.delete({ where: { id: parseInt(req.params.id) } });
+    await createActivityLog(req.user.userId, 'DELETE_PAYMENT_METHOD', `Super Admin menghapus metode pembayaran: ${method.name}`);
+    res.status(204).send();
+  } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
 // ==========================================

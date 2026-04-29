@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { X, Download, Star, Image as ImageIcon, ShoppingBag } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MyDashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('Bank Transfer BCA');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedMethodId, setSelectedMethodId] = useState('');
   const [proofFile, setProofFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -26,7 +28,12 @@ const MyDashboard = () => {
   useEffect(() => {
     fetchBookings();
     fetchSettings();
+    fetchPaymentMethods();
   }, []);
+
+  const fetchPaymentMethods = () => {
+    api.get('/payment-methods').then(res => setPaymentMethods(res.data)).catch(console.error);
+  };
 
   const fetchBookings = () => {
     setIsLoadingBookings(true);
@@ -74,9 +81,10 @@ const MyDashboard = () => {
     
     setLoading(true);
     const formData = new FormData();
+    const methodObj = paymentMethods.find(m => m.id === parseInt(selectedMethodId));
     formData.append('bookingId', selectedBooking.id);
     formData.append('amount', selectedBooking.totalPrice);
-    formData.append('method', paymentMethod);
+    formData.append('method', methodObj ? methodObj.name : 'Unknown');
     formData.append('proofFile', proofFile);
 
     try {
@@ -162,7 +170,15 @@ const MyDashboard = () => {
               </div>
                 <div>
                   {b.status === 'pending' && !hasPayment && (
-                    <button className="btn btn-accent" style={{ padding: '8px 16px' }} onClick={() => setSelectedBooking(b)}>
+                    <button 
+                      className="btn btn-accent" 
+                      style={{ padding: '8px 16px' }} 
+                      onClick={() => {
+                        setSelectedBooking(b);
+                        if (b.paymentMethodId) setSelectedMethodId(b.paymentMethodId.toString());
+                        else if (paymentMethods.length > 0) setSelectedMethodId(paymentMethods[0].id.toString());
+                      }}
+                    >
                       Bayar Sekarang
                     </button>
                   )}
@@ -187,51 +203,100 @@ const MyDashboard = () => {
       )}
 
       {/* Payment Modal */}
-      {selectedBooking && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}>
-            <button onClick={() => setSelectedBooking(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent' }}>
-              <X size={20} color="var(--text-muted)"/>
-            </button>
-            <h3 style={{ marginBottom: '16px' }}>Upload Bukti Pembayaran</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px' }}>
-              Total Tagihan: <strong>Rp {selectedBooking.totalPrice.toLocaleString()}</strong>
-            </p>
-            
-            <form onSubmit={handleUploadPayment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>Metode Pembayaran</label>
-                <select className="input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                  <option value="Bank Transfer BCA">Bank Transfer BCA (0987654321)</option>
-                  <option value="Bank Mandiri">Bank Mandiri (1234567890)</option>
-                  <option value="E-Wallet GoPay">E-Wallet GoPay (08123456789)</option>
-                </select>
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>File Bukti (Image/PDF)</label>
-                <input 
-                  type="file" 
-                  accept="image/*,.pdf" 
-                  className="input" 
-                  onChange={(e) => setProofFile(e.target.files[0])}
-                  style={{ background: 'var(--bg-light)' }}
-                />
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }} disabled={loading}>
-                {loading ? 'Mengunggah...' : 'Upload Pembayaran'}
+      <AnimatePresence>
+        {selectedBooking && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="card" 
+              style={{ width: '100%', maxWidth: '400px', padding: '24px', position: 'relative' }}
+            >
+              <button onClick={() => setSelectedBooking(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <X size={20} color="var(--text-muted)"/>
               </button>
-            </form>
-          </div>
-        </div>
-      )}
+              <h3 style={{ marginBottom: '16px' }}>Upload Bukti Pembayaran</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px' }}>
+                Total Tagihan: <strong>Rp {selectedBooking.totalPrice.toLocaleString()}</strong>
+              </p>
+              
+              <form onSubmit={handleUploadPayment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>Pilih Metode Pembayaran</label>
+                  <select 
+                    className="input" 
+                    value={selectedMethodId} 
+                    onChange={(e) => setSelectedMethodId(e.target.value)}
+                  >
+                    {paymentMethods.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  {selectedMethodId && (
+                    <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-light)', borderRadius: '8px', fontSize: '13px' }}>
+                      {paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.type === 'qris' ? (
+                        <div style={{ textAlign: 'center' }}>
+                           <img 
+                             src={`http://localhost:3001${paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.imageUrl}`} 
+                             alt="QRIS" 
+                             style={{ width: '100%', maxWidth: '150px', marginBottom: '8px', borderRadius: '4px' }} 
+                           />
+                           <p>Scan QRIS untuk membayar</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div><strong>No. Rek:</strong> {paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.accountNo}</div>
+                          <div><strong>A.N:</strong> {paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.accountName}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>File Bukti (Image/PDF)</label>
+                  <input 
+                    type="file" 
+                    accept="image/*,.pdf" 
+                    className="input" 
+                    onChange={(e) => setProofFile(e.target.files[0])}
+                    style={{ background: 'var(--bg-light)' }}
+                  />
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }} disabled={loading}>
+                  {loading ? 'Mengunggah...' : 'Upload Pembayaran'}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* E-Ticket Modal */}
-      {selectedTicket && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}>
-          
-          <div ref={ticketRef} className="ticket-print-area card" style={{ width: '100%', maxWidth: '600px', background: 'white', position: 'relative', overflow: 'hidden', boxShadow: 'none' }}>
+      <AnimatePresence>
+        {selectedTicket && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="no-print" 
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}
+          >
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              ref={ticketRef} 
+              className="ticket-print-area card" 
+              style={{ width: '100%', maxWidth: '600px', background: 'white', position: 'relative', overflow: 'hidden', boxShadow: 'none' }}
+            >
             {/* Ticket Header */}
             <div style={{ background: 'var(--primary)', color: 'white', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -285,63 +350,77 @@ const MyDashboard = () => {
                 {downloading ? 'Mengunduh...' : <><Download size={18}/> Unduh Tiket (.png)</>}
               </button>
             </div>
-
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+    </AnimatePresence>
+
       {/* Review Modal */}
-      {showReviewModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '32px', position: 'relative' }}>
-            <button onClick={() => setShowReviewModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-              <X size={20} color="var(--text-muted)"/>
-            </button>
-            <h3 style={{ marginBottom: '24px' }}>Tulis Ulasan Perjalanan</h3>
-            
-            <form onSubmit={handleReviewSubmit} style={{ display: 'grid', gap: '20px' }}>
-               <div style={{ textAlign: 'center' }}>
-                  <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Rating Anda</label>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star 
-                        key={star} 
-                        size={32} 
-                        style={{ cursor: 'pointer' }}
-                        color={star <= rating ? '#eab308' : 'var(--border)'} 
-                        fill={star <= rating ? '#eab308' : 'transparent'}
-                        onClick={() => setRating(star)}
-                      />
-                    ))}
-                  </div>
-               </div>
+      <AnimatePresence>
+        {showReviewModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="card" 
+              style={{ width: '100%', maxWidth: '450px', padding: '32px', position: 'relative' }}
+            >
+              <button onClick={() => setShowReviewModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <X size={20} color="var(--text-muted)"/>
+              </button>
+              <h3 style={{ marginBottom: '24px' }}>Tulis Ulasan Perjalanan</h3>
+              
+              <form onSubmit={handleReviewSubmit} style={{ display: 'grid', gap: '20px' }}>
+                 <div style={{ textAlign: 'center' }}>
+                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Rating Anda</label>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={star} 
+                          size={32} 
+                          style={{ cursor: 'pointer' }}
+                          color={star <= rating ? '#eab308' : 'var(--border)'} 
+                          fill={star <= rating ? '#eab308' : 'transparent'}
+                          onClick={() => setRating(star)}
+                        />
+                      ))}
+                    </div>
+                 </div>
 
-               <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Komentar</label>
-                  <textarea 
-                    className="input" 
-                    rows="4" 
-                    placeholder="Ceritakan pengalaman seru Anda..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    required
-                  ></textarea>
-               </div>
+                 <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Komentar</label>
+                    <textarea 
+                      className="input" 
+                      rows="4" 
+                      placeholder="Ceritakan pengalaman seru Anda..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      required
+                    ></textarea>
+                 </div>
 
-               <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Foto Trip (Opsional)</label>
-                  <label className="btn" style={{ width: '100%', background: 'var(--bg-light)', border: '1px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <ImageIcon size={18}/> {reviewImage ? reviewImage.name : 'Pilih Foto'}
-                    <input type="file" hidden accept="image/*" onChange={(e) => setReviewImage(e.target.files[0])} />
-                  </label>
-               </div>
+                 <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Foto Trip (Opsional)</label>
+                    <label className="btn" style={{ width: '100%', background: 'var(--bg-light)', border: '1px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <ImageIcon size={18}/> {reviewImage ? reviewImage.name : 'Pilih Foto'}
+                      <input type="file" hidden accept="image/*" onChange={(e) => setReviewImage(e.target.files[0])} />
+                    </label>
+                 </div>
 
-               <button type="submit" className="btn btn-primary" style={{ padding: '12px' }} disabled={loading}>
-                 {loading ? 'Mengirim...' : 'Kirim Ulasan'}
-               </button>
-            </form>
-          </div>
-        </div>
-      )}
+                 <button type="submit" className="btn btn-primary" style={{ padding: '12px' }} disabled={loading}>
+                   {loading ? 'Mengirim...' : 'Kirim Ulasan'}
+                 </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

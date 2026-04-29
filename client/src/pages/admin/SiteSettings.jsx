@@ -14,7 +14,7 @@ const SiteSettings = () => {
     expenseThreshold: 1000000,
     heroTitle: '',
     heroSubtitle: '',
-    heroImageUrl: ''
+    heroImages: []
   });
   const [logoFile, setLogoFile] = useState(null);
   const [heroImageFile, setHeroImageFile] = useState(null);
@@ -33,11 +33,8 @@ const SiteSettings = () => {
     try {
       const res = await api.get('/settings');
       setSettings(res.data);
-      if (res.data.logoUrl) {
+      if (res.data?.logoUrl) {
         setPreviewUrl(`http://localhost:3001${res.data.logoUrl}`);
-      }
-      if (res.data.heroImageUrl) {
-        setHeroPreviewUrl(`http://localhost:3001${res.data.heroImageUrl}`);
       }
     } catch (err) {
       console.error('Gagal memuat pengaturan', err);
@@ -65,10 +62,9 @@ const SiteSettings = () => {
       formData.append('contactPhone', settings.contactPhone);
       formData.append('address', settings.address);
       formData.append('expenseThreshold', settings.expenseThreshold);
-      formData.append('heroTitle', settings.heroTitle);
-      formData.append('heroSubtitle', settings.heroSubtitle);
+      formData.append('heroTitle', settings.heroTitle || '');
+      formData.append('heroSubtitle', settings.heroSubtitle || '');
       if (logoFile) formData.append('logoFile', logoFile);
-      if (heroImageFile) formData.append('heroImageFile', heroImageFile);
 
       await api.put('/settings', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

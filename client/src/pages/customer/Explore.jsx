@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users } from 'lucide-react';
+import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users, Image as ImageIcon } from 'lucide-react';
 import Lottie from 'lottie-react';
+import { motion } from 'framer-motion';
 
 const Explore = () => {
   const [trips, setTrips] = useState([]);
@@ -109,16 +110,57 @@ const Explore = () => {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
+        <motion.div 
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}
+        >
           {filteredAndSortedTrips.map(trip => (
-            <div key={trip.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <motion.div 
+              key={trip.id} 
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                show: { opacity: 1, y: 0 }
+              }}
+              whileHover={{ y: -10 }}
+              className="card" 
+              style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', transition: 'all 0.3s ease' }}
+            >
               <div style={{ height: '220px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
-                <img 
-                  src={trip.image ? `http://localhost:3001${trip.image}` : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`} 
-                  alt={trip.title} 
-                  loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
-                />
+                {trip.image ? (
+                  <img 
+                    src={`http://localhost:3001${trip.image}`} 
+                    alt={trip.title} 
+                    loading="lazy"
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
+                  />
+                ) : null}
+                <div 
+                  style={{ 
+                    display: trip.image ? 'none' : 'flex', 
+                    width: '100%', 
+                    height: '100%', 
+                    background: 'var(--bg-light)', 
+                    flexDirection: 'column',
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '12px',
+                    color: 'var(--text-muted)'
+                  }}
+                >
+                  <ImageIcon size={48} strokeWidth={1} />
+                  <span style={{ fontSize: '12px', fontWeight: '500' }}>Foto belum tersedia</span>
+                </div>
                 
                 {/* Labels */}
                 <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '8px' }}>
@@ -152,9 +194,9 @@ const Explore = () => {
                   <Link to={`/trip/${trip.id}`} className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}>Detail</Link>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );

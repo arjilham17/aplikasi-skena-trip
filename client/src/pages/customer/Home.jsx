@@ -107,12 +107,32 @@ const Home = () => {
       {(loading || featuredReviews.length > 0) && (
         <section style={{ padding: '100px 20px', background: 'var(--bg-white)' }}>
           <div className="container">
-            <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              style={{ textAlign: 'center', marginBottom: '64px' }}
+            >
               <span style={{ color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '14px' }}>Testimoni</span>
               <h2 style={{ fontSize: '42px', marginTop: '12px' }}>Apa Kata Mereka?</h2>
-            </div>
+            </motion.div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px' }}>
+            <motion.div 
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.2
+                  }
+                }
+              }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px' }}
+            >
               {loading ? (
                 [...Array(3)].map((_, i) => (
                   <div key={i} className="card" style={{ padding: '32px' }}>
@@ -129,7 +149,16 @@ const Home = () => {
                 ))
               ) : (
                 featuredReviews.map(review => (
-                  <div key={review.id} className="card" style={{ padding: '32px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                  <motion.div 
+                    key={review.id} 
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 }
+                    }}
+                    whileHover={{ y: -10, boxShadow: 'var(--shadow-xl)' }}
+                    className="card" 
+                    style={{ padding: '32px', position: 'relative', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.3s ease' }}
+                  >
                     <Quote size={40} color="var(--primary)" style={{ opacity: 0.1, position: 'absolute', top: '24px', right: '24px' }} />
                     
                     <div style={{ display: 'flex', gap: '2px', marginBottom: '20px' }}>
@@ -153,10 +182,10 @@ const Home = () => {
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Peserta Trip {review.trip.destination}</div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               )}
-            </div>
+            </motion.div>
           </div>
         </section>
       )}

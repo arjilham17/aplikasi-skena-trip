@@ -117,6 +117,7 @@ const AdminLayout = () => {
     { name: 'Pengeluaran Trip',    path: '/admin/expenses',  icon: <Wallet size={20} /> },
     ...(isSuperAdmin ? [
       { name: 'Manajemen Pengguna', path: '/admin/users', icon: <Users size={20} /> },
+      { name: 'Metode Pembayaran',  path: '/admin/payments', icon: <Wallet size={20} /> },
       { name: 'Pengaturan Situs',   path: '/admin/settings', icon: <Settings size={20} /> },
       { name: 'Log Aktivitas',     path: '/admin/logs', icon: <History size={20} /> }
     ] : []),
