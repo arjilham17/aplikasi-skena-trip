@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { X, Filter, Download, FileText, Calendar, Table, MessageCircle } from 'lucide-react';
+import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 const AdminOverview = () => {
   const [bookings, setBookings] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProofUrl, setSelectedProofUrl] = useState(null);
   
@@ -22,8 +23,12 @@ const AdminOverview = () => {
 
   const fetchData = async () => {
     try {
-      const resBookings = await api.get('/bookings');
+      const [resBookings, resExpenses] = await Promise.all([
+        api.get('/bookings'),
+        api.get('/expenses')
+      ]);
       setBookings(resBookings.data);
+      setExpenses(resExpenses.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -63,6 +68,36 @@ const AdminOverview = () => {
     }
     return true;
   });
+
+  const filteredExpenses = expenses.filter(e => {
+    if (filterType === 'all') return true;
+    const expDate = new Date(e.expenseDate);
+    const now = new Date();
+
+    if (filterType === 'month') {
+      return expDate.getMonth() === now.getMonth() && expDate.getFullYear() === now.getFullYear();
+    }
+    if (filterType === 'week') {
+      const startOfWeek = new Date();
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0,0,0,0);
+      return expDate >= startOfWeek;
+    }
+    if (filterType === 'custom') {
+      const start = startDate ? new Date(startDate) : new Date(0);
+      const end = endDate ? new Date(endDate) : new Date();
+      end.setHours(23, 59, 59, 999);
+      return expDate >= start && expDate <= end;
+    }
+    return true;
+  });
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperAdmin = user.role === 'superadmin' || user.role === 'super_admin';
+
+  const totalRevenue = filteredBookings.filter(b => b.status === 'confirmed').reduce((sum, b) => sum + b.totalPrice, 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const netProfit = totalRevenue - totalExpenses;
 
   // ─── Export Logic ────────────────────────────────────────────────────────
   const prepareExportData = () => {
@@ -243,32 +278,69 @@ const AdminOverview = () => {
           </div>
 
           {/* Quick Stats Cards */}
-          <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-             <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
-                   <Calendar size={120} color="var(--primary)" />
-                </div>
-                <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Pendapatan</h4>
-                <p style={{ fontSize: '36px', fontWeight: '850', color: 'var(--primary)', margin: 0 }}>
-                  Rp {filteredBookings.filter(b => b.status === 'confirmed').reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString()}
-                </p>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                   Dihitung dari pesanan terkonfirmasi
-                </p>
-             </div>
-             <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
-                   <FileText size={120} color="#eab308" />
-                </div>
-                <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Menunggu Verifikasi</h4>
-                <p style={{ fontSize: '36px', fontWeight: '850', color: '#eab308', margin: 0 }}>
-                  {filteredBookings.filter(b => b.status === 'pending').length}
-                </p>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                   Pesanan baru masuk hari ini
-                </p>
-             </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isSuperAdmin ? '1fr 1fr' : '1fr', gap: '24px' }}>
+             {loading ? (
+                [...Array(isSuperAdmin ? 2 : 1)].map((_, i) => (
+                  <div key={i} className="card" style={{ padding: '32px' }}>
+                     <div className="skeleton skeleton-text" style={{ width: '40%' }}></div>
+                     <div className="skeleton skeleton-title" style={{ width: '80%', height: '40px' }}></div>
+                     <div className="skeleton skeleton-text" style={{ width: '60%', marginTop: '16px' }}></div>
+                  </div>
+                ))
+             ) : (
+               <>
+                 <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
+                       <Calendar size={120} color="var(--primary)" />
+                    </div>
+                    <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{isSuperAdmin ? 'Total Pendapatan' : 'Pesanan Sukses'}</h4>
+                    <p style={{ fontSize: '36px', fontWeight: '850', color: 'var(--primary)', margin: 0 }}>
+                      {isSuperAdmin ? `Rp ${totalRevenue.toLocaleString()}` : `${filteredBookings.filter(b => b.status === 'confirmed').length} Trip`}
+                    </p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                       {isSuperAdmin ? 'Dihitung dari pesanan terkonfirmasi' : 'Total perjalanan yang telah dibayar'}
+                    </p>
+                 </div>
+                 
+                 {isSuperAdmin && (
+                   <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: netProfit >= 0 ? 'var(--primary)' : '#dc2626', color: 'white' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <h4 style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Keuntungan Bersih (Net Profit)</h4>
+                        <div className="tooltip-container">
+                          <HelpCircle size={14} color="rgba(255,255,255,0.6)" />
+                          <div className="tooltip-content">
+                            Pendapatan kotor (Confirmed) dikurangi seluruh pengeluaran operasional lapangan.
+                          </div>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '36px', fontWeight: '850', margin: 0 }}>
+                        Rp {netProfit.toLocaleString()}
+                      </p>
+                      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '8px' }}>
+                        Pendapatan dikurangi pengeluaran (periode terpilih)
+                      </p>
+                   </div>
+                 )}
+               </>
+             )}
           </div>
+          
+          {/* Third stat for super admin: Pending Count */}
+          {isSuperAdmin && (
+            <div className="card" style={{ gridColumn: 'span 2', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: '#fef9c3', padding: '10px', borderRadius: '10px' }}><FileText size={24} color="#eab308" /></div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '600' }}>Antrean Verifikasi</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{filteredBookings.filter(b => b.status === 'pending').length} pesanan butuh persetujuan</div>
+                  </div>
+               </div>
+               <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Total Pengeluaran</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#dc2626' }}>- Rp {totalExpenses.toLocaleString()}</div>
+               </div>
+            </div>
+          )}
         </div>
 
         {/* Bookings Table */}
@@ -333,8 +405,12 @@ const AdminOverview = () => {
               </tbody>
             </table>
             {filteredBookings.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '64px 0' }}>
-                 <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Tidak ada pesanan ditemukan dalam rentang waktu ini.</p>
+              <div className="empty-state" style={{ padding: '64px', border: 'none' }}>
+                <div className="empty-state-icon">
+                  <Table size={32} />
+                </div>
+                <h4 style={{ margin: 0 }}>Tidak ada pesanan</h4>
+                <p style={{ fontSize: '13px', margin: 0 }}>Tidak ada pesanan yang sesuai dengan filter saat ini.</p>
               </div>
             )}
           </div>

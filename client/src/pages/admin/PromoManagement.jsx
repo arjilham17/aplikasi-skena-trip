@@ -8,6 +8,10 @@ const PromoManagement = () => {
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountType, setDiscountType] = useState('flat');
 
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isSuperAdmin = user && (user.role === 'superadmin' || user.role === 'super_admin');
+
   useEffect(() => { fetchPromos(); }, []);
 
   const fetchPromos = () => {
@@ -86,7 +90,9 @@ const PromoManagement = () => {
                   </button>
                 </td>
                 <td>
-                  <button onClick={() => handleDelete(p.id)} className="btn" style={{ background: '#fee2e2', color: '#dc2626', padding: '6px', minWidth: 'auto' }}><Trash size={16}/></button>
+                  {isSuperAdmin && (
+                    <button onClick={() => handleDelete(p.id)} className="btn" style={{ background: '#fee2e2', color: '#dc2626', padding: '6px', minWidth: 'auto' }}><Trash size={16}/></button>
+                  )}
                 </td>
               </tr>
             ))}

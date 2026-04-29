@@ -8,6 +8,8 @@ const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const sharp = require('sharp');
+const fs = require('fs');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -62,7 +64,52 @@ const isSuperAdmin = (req, res, next) => {
   if (req.user && (req.user.role === 'superadmin' || req.user.role === 'super_admin')) {
     next();
   } else {
-    res.status(403).json({ error: 'Akses ditolak. Hanya Super Admin yang dapat melakukan tindakan ini.' });
+    res.status(403).json({ error: 'Akses ditolak. Fitur ini hanya untuk Super Admin.' });
+  }
+};
+
+// ==========================================
+// UTILS
+// ==========================================
+const createActivityLog = async (userId, action, details) => {
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId: userId,
+        action: action,
+        details: details
+      }
+    });
+  } catch (error) {
+    console.error('FAILED TO CREATE ACTIVITY LOG:', error);
+  }
+};
+
+const createAdminNotification = async (type, message) => {
+  try {
+    await prisma.adminNotification.create({
+      data: { type, message }
+    });
+  } catch (error) {
+    console.error('FAILED TO CREATE ADMIN NOTIFICATION:', error);
+  }
+};
+// Image Optimization Helper
+const optimizeImage = async (file) => {
+  if (!file) return;
+  const filePath = file.path;
+  const tempPath = filePath + '_temp';
+  
+  try {
+    await sharp(filePath)
+      .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toFile(tempPath);
+    
+    fs.unlinkSync(filePath);
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    console.error('IMAGE OPTIMIZATION ERROR:', err);
   }
 };
 
@@ -331,14 +378,21 @@ app.get('/api/trips/:id', async (req, res) => {
         bookings: {
           where: { status: { in: ['pending', 'confirmed'] } },
           select: { pax: true }
-        }
+        },
+        itinerary: { orderBy: { time: 'asc' } }
       }
     });
 
     if (trip) {
       const currentPax = trip.bookings.reduce((sum, b) => sum + b.pax, 0);
+      const reviews = await prisma.review.findMany({
+        where: { tripId: parseInt(req.params.id) },
+        include: { user: { select: { name: true, profilePicUrl: true } } },
+        orderBy: { createdAt: 'desc' }
+      });
+      const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null;
       const { bookings, ...tripData } = trip;
-      res.json({ ...tripData, currentPax });
+      res.json({ ...tripData, currentPax, reviews, avgRating });
     } else {
       res.status(404).json({ error: 'Trip not found' });
     }
@@ -358,9 +412,14 @@ app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), a
       duration,
       imagePosition: imagePosition || 'center'
     };
-    if (req.file) data.image = `/uploads/${req.file.filename}`;
+
+    if (req.file) {
+      await optimizeImage(req.file);
+      data.image = `/uploads/${req.file.filename}`;
+    }
     
     const trip = await prisma.trip.create({ data });
+    await createActivityLog(req.user.userId, 'CREATE_TRIP', `Admin membuat trip baru: ${trip.title}`);
     res.status(201).json(trip);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -378,19 +437,27 @@ app.put('/api/trips/:id', authenticateToken, isAdmin, upload.single('imageFile')
     if (duration) data.duration = duration;
     if (imagePosition) data.imagePosition = imagePosition;
     
-    if (req.file) data.image = `/uploads/${req.file.filename}`;
+    if (req.file) {
+      await optimizeImage(req.file);
+      data.image = `/uploads/${req.file.filename}`;
+    }
 
     const trip = await prisma.trip.update({
       where: { id: parseInt(req.params.id) },
       data
     });
+    await createActivityLog(req.user.userId, 'UPDATE_TRIP', `Admin memperbarui trip: ${trip.title} (ID: ${trip.id})`);
     res.json(trip);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.delete('/api/trips/:id', authenticateToken, isAdmin, async (req, res) => {
+app.delete('/api/trips/:id', authenticateToken, isSuperAdmin, async (req, res) => {
   try {
-    await prisma.trip.delete({ where: { id: parseInt(req.params.id) } });
+    const tripId = parseInt(req.params.id);
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    await prisma.trip.delete({ where: { id: tripId } });
+    await createActivityLog(req.user.userId, 'DELETE_TRIP', `Super Admin menghapus trip: ${trip?.title || 'Unknown'} (ID: ${tripId})`);
+    await createAdminNotification('DELETION', `Trip "${trip?.title || 'Unknown'}" (ID: ${tripId}) telah dihapus oleh ${req.user.name}`);
     res.status(204).send();
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -496,6 +563,7 @@ app.put('/api/bookings/:id/status', authenticateToken, isAdmin, async (req, res)
       where: { id: parseInt(req.params.id) },
       data: { status }
     });
+    await createActivityLog(req.user.userId, 'UPDATE_BOOKING_STATUS', `Admin mengubah status pesanan #${booking.id} menjadi ${status.toUpperCase()}`);
     res.json(booking);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -513,6 +581,9 @@ app.post('/api/payments', authenticateToken, upload.single('proofFile'), async (
     if (!booking) return res.status(404).json({error: 'Booking not found'});
     if (booking.userId !== req.user.userId) return res.status(403).json({error: 'Forbidden'});
 
+    if (req.file) {
+      await optimizeImage(req.file);
+    }
     const proofUrl = req.file ? `/uploads/${req.file.filename}` : null;
     if (!proofUrl) return res.status(400).json({error: 'Bukti pembayaran wajib diunggah'});
 
@@ -555,6 +626,7 @@ app.put('/api/payments/:id/verify', authenticateToken, isAdmin, async (req, res)
       });
     }
 
+    await createActivityLog(req.user.userId, 'VERIFY_PAYMENT', `Admin memverifikasi pembayaran (ID: ${payment.id}) untuk pesanan #${payment.bookingId} sebagai ${status.toUpperCase()}`);
     res.json(payment);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -566,16 +638,27 @@ app.put('/api/payments/:id/verify', authenticateToken, isAdmin, async (req, res)
 app.post('/api/expenses', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { tripId, itemName, category, amount, expenseDate, receiptUrl } = req.body;
+    const amountVal = parseFloat(amount);
+    
     const expense = await prisma.expense.create({
       data: {
         tripId: parseInt(tripId),
         itemName,
         category,
-        amount: parseFloat(amount),
+        amount: amountVal,
         expenseDate: new Date(expenseDate),
         receiptUrl
       }
     });
+    
+    await createActivityLog(req.user.userId, 'CREATE_EXPENSE', `Admin mencatat pengeluaran: ${itemName} (Rp ${amountVal.toLocaleString()}) untuk Trip ID: ${tripId}`);
+    
+    // Check threshold for notification
+    const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+    if (settings && amountVal >= settings.expenseThreshold) {
+      await createAdminNotification('HIGH_EXPENSE', `Pengeluaran tinggi terdeteksi: ${itemName} senilai Rp ${amountVal.toLocaleString()} (Threshold: Rp ${settings.expenseThreshold.toLocaleString()})`);
+    }
+
     res.status(201).json(expense);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -587,6 +670,63 @@ app.get('/api/expenses', authenticateToken, isAdmin, async (req, res) => {
       orderBy: { expenseDate: 'desc' }
     });
     res.json(expenses);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.put('/api/expenses/:id', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const { tripId, itemName, category, amount, expenseDate } = req.body;
+    const expense = await prisma.expense.update({
+      where: { id: parseInt(req.params.id) },
+      data: {
+        tripId: parseInt(tripId),
+        itemName,
+        category,
+        amount: parseFloat(amount),
+        expenseDate: new Date(expenseDate)
+      }
+    });
+    await createActivityLog(req.user.userId, 'UPDATE_EXPENSE', `Super Admin memperbarui pengeluaran: ${itemName} (ID: ${expense.id})`);
+    res.json(expense);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.delete('/api/expenses/:id', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const expenseId = parseInt(req.params.id);
+    const expense = await prisma.expense.findUnique({ where: { id: expenseId } });
+    await prisma.expense.delete({ where: { id: expenseId } });
+    await createActivityLog(req.user.userId, 'DELETE_EXPENSE', `Super Admin menghapus pengeluaran: ${expense?.itemName || 'Unknown'} (ID: ${expenseId})`);
+    res.status(204).send();
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.get('/api/admin/trips/:id/finance', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.id);
+    
+    // Total Revenue (Confirmed/Paid Bookings)
+    const bookings = await prisma.booking.findMany({
+      where: { tripId: tripId, status: 'confirmed' }
+    });
+    const totalRevenue = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
+
+    // Total Expenses
+    const expenses = await prisma.expense.findMany({
+      where: { tripId: tripId }
+    });
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+    const netProfit = totalRevenue - totalExpenses;
+
+    res.json({
+      tripId,
+      totalRevenue,
+      totalExpenses,
+      netProfit,
+      expenseCount: expenses.length,
+      bookingCount: bookings.length
+    });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -607,6 +747,7 @@ app.post('/api/promos', authenticateToken, isAdmin, async (req, res) => {
     const promo = await prisma.promoCode.create({
       data: { code: code.toUpperCase(), discountAmount: parseFloat(discountAmount), discountType: discountType || 'flat' }
     });
+    await createActivityLog(req.user.userId, 'CREATE_PROMO', `Admin membuat kode promo baru: ${promo.code}`);
     res.status(201).json(promo);
   } catch (error) { 
     console.error('PROMO CREATION ERROR:', error);
@@ -630,9 +771,13 @@ app.put('/api/promos/:id', authenticateToken, isAdmin, async (req, res) => {
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.delete('/api/promos/:id', authenticateToken, isAdmin, async (req, res) => {
+app.delete('/api/promos/:id', authenticateToken, isSuperAdmin, async (req, res) => {
   try {
-    await prisma.promoCode.delete({ where: { id: parseInt(req.params.id) } });
+    const promoId = parseInt(req.params.id);
+    const promo = await prisma.promoCode.findUnique({ where: { id: promoId } });
+    await prisma.promoCode.delete({ where: { id: promoId } });
+    await createActivityLog(req.user.userId, 'DELETE_PROMO', `Super Admin menghapus kode promo: ${promo?.code || 'Unknown'} (ID: ${promoId})`);
+    await createAdminNotification('DELETION', `Kode Promo "${promo?.code || 'Unknown'}" (ID: ${promoId}) telah dihapus oleh ${req.user.name}`);
     res.status(204).send();
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -805,25 +950,67 @@ app.delete('/api/admin/users/:id', authenticateToken, isSuperAdmin, async (req, 
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
+// Reset Password (Super Admin)
+app.post('/api/admin/users/:id/reset-password', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password baru minimal 6 karakter.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const user = await prisma.user.update({
+      where: { id: targetId },
+      data: { password: hashedPassword },
+      select: { id: true, name: true, email: true }
+    });
+
+    await createActivityLog(req.user.userId, 'RESET_PASSWORD', `Super Admin mereset password untuk user: ${user.name} (${user.email})`);
+    res.json({ message: `Password untuk ${user.name} berhasil direset.` });
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
 // ==========================================
 // SITE SETTINGS API
 // ==========================================
 
 app.get('/api/settings', async (req, res) => {
   try {
-    let settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+    let settings = await prisma.siteSettings.findUnique({
+      where: { id: 1 },
+      include: { heroImages: true }
+    });
     if (!settings) {
-      settings = await prisma.siteSettings.create({ data: { id: 1 } });
+      settings = await prisma.siteSettings.create({ 
+        data: { id: 1 },
+        include: { heroImages: true }
+      });
     }
     res.json(settings);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.put('/api/settings', authenticateToken, isAdmin, upload.single('logoFile'), async (req, res) => {
+app.put('/api/settings', authenticateToken, isAdmin, upload.fields([
+  { name: 'logoFile', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { siteName, slogan, contactEmail, contactPhone, address } = req.body;
-    let data = { siteName, slogan, contactEmail, contactPhone, address };
-    if (req.file) data.logoUrl = `/uploads/${req.file.filename}`;
+    const { siteName, slogan, contactEmail, contactPhone, address, expenseThreshold, heroTitle, heroSubtitle } = req.body;
+    let data = { 
+      siteName, 
+      slogan, 
+      contactEmail, 
+      contactPhone, 
+      address,
+      expenseThreshold: expenseThreshold ? parseFloat(expenseThreshold) : undefined,
+      heroTitle,
+      heroSubtitle
+    };
+    
+    if (req.files && req.files.logoFile) {
+      data.logoUrl = `/uploads/${req.files.logoFile[0].filename}`;
+    }
     
     const settings = await prisma.siteSettings.upsert({
       where: { id: 1 },
@@ -831,6 +1018,167 @@ app.put('/api/settings', authenticateToken, isAdmin, upload.single('logoFile'), 
       create: { ...data, id: 1 }
     });
     res.json(settings);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+// HERO IMAGES MANAGEMENT
+app.post('/api/settings/hero-images', authenticateToken, isAdmin, upload.single('heroImage'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+
+    const currentCount = await prisma.heroImage.count({ where: { siteSettingsId: 1 } });
+    if (currentCount >= 10) return res.status(400).json({ error: 'Maksimal 10 foto hero diizinkan' });
+
+    const heroImage = await prisma.heroImage.create({
+      data: {
+        url: `/uploads/${req.file.filename}`,
+        siteSettingsId: 1
+      }
+    });
+    res.status(201).json(heroImage);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.delete('/api/settings/hero-images/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await prisma.heroImage.delete({ where: { id: parseInt(req.params.id) } });
+    res.status(204).send();
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+// ==========================================
+// ACTIVITY LOGS API (Super Admin)
+// ==========================================
+
+app.get('/api/admin/logs', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const logs = await prisma.activityLog.findMany({
+      include: { user: { select: { name: true, email: true, role: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 200 // Limit to last 200 logs
+    });
+    res.json(logs);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Admin Notifications API
+app.get('/api/admin/notifications', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const notifications = await prisma.adminNotification.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json(notifications);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/api/admin/notifications/unread-count', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const count = await prisma.adminNotification.count({
+      where: { isRead: false }
+    });
+    res.json({ count });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.put('/api/admin/notifications/:id/read', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    await prisma.adminNotification.update({
+      where: { id: parseInt(req.params.id) },
+      data: { isRead: true }
+    });
+    res.status(204).send();
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+// ==========================================
+// REVIEWS API
+// ==========================================
+
+app.post('/api/reviews', authenticateToken, upload.single('reviewImage'), async (req, res) => {
+  try {
+    const { tripId, rating, comment } = req.body;
+    
+    // Check if user has a confirmed booking for this trip
+    const booking = await prisma.booking.findFirst({
+      where: {
+        userId: req.user.userId,
+        tripId: parseInt(tripId),
+        status: 'confirmed'
+      }
+    });
+
+    if (!booking) {
+      return res.status(403).json({ error: 'Anda hanya dapat memberikan ulasan untuk trip yang telah Anda ikuti dan dikonfirmasi.' });
+    }
+
+    // Check if already reviewed
+    const existingReview = await prisma.review.findFirst({
+      where: { userId: req.user.userId, tripId: parseInt(tripId) }
+    });
+
+    if (existingReview) {
+      return res.status(400).json({ error: 'Anda sudah memberikan ulasan untuk trip ini.' });
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+      await optimizeImage(req.file);
+      imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const review = await prisma.review.create({
+      data: {
+        rating: parseInt(rating),
+        comment,
+        imageUrl,
+        userId: req.user.userId,
+        tripId: parseInt(tripId)
+      }
+    });
+
+    res.status(201).json(review);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.get('/api/reviews/featured', async (req, res) => {
+  try {
+    const reviews = await prisma.review.findMany({
+      where: { rating: { gte: 4 } },
+      take: 6,
+      include: { 
+        user: { select: { name: true, profilePicUrl: true } },
+        trip: { select: { title: true, destination: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(reviews);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// ==========================================
+// ITINERARY API
+// ==========================================
+
+app.post('/api/trips/:id/itinerary', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { time, activity, description } = req.body;
+    const item = await prisma.itineraryItem.create({
+      data: {
+        time,
+        activity,
+        description,
+        tripId: parseInt(req.params.id)
+      }
+    });
+    res.status(201).json(item);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.delete('/api/itinerary/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await prisma.itineraryItem.delete({ where: { id: parseInt(req.params.id) } });
+    res.status(204).send();
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 

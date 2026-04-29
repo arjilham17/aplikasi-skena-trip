@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import {
   Users, Search, Shield, ShieldCheck, ShieldAlert,
-  Trash2, UserCog, ChevronDown, X, AlertTriangle
+  Trash2, UserCog, ChevronDown, X, AlertTriangle, Key
 } from 'lucide-react';
 
 // ─── Role Config ────────────────────────────────────────────
@@ -39,10 +39,10 @@ const ConfirmModal = ({ user, onConfirm, onCancel }) => (
   }}>
     <div className="card" style={{ padding: '32px', maxWidth: '420px', width: '90%', textAlign: 'center' }}>
       <div style={{
-        width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2',
+        width: '64px', height: '64px', borderRadius: '50%', background: 'var(--danger-bg)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px'
       }}>
-        <AlertTriangle size={32} color="#dc2626" />
+        <AlertTriangle size={32} color="var(--danger)" />
       </div>
       <h3 style={{ marginBottom: '8px' }}>Hapus Pengguna?</h3>
       <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px' }}>
@@ -59,7 +59,7 @@ const ConfirmModal = ({ user, onConfirm, onCancel }) => (
         <button
           onClick={onConfirm}
           className="btn"
-          style={{ background: '#dc2626', color: 'white', padding: '10px 24px' }}
+          style={{ background: 'var(--danger)', color: 'white', padding: '10px 24px' }}
         >
           <Trash2 size={16} /> Ya, Hapus
         </button>
@@ -77,6 +77,9 @@ const UserManagement = () => {
   const [deletingUser, setDeletingUser] = useState(null);
   const [updatingId, setUpdatingId]     = useState(null);
   const [toast, setToast]               = useState(null);
+  const [resettingUser, setResettingUser] = useState(null);
+  const [newPassword, setNewPassword]     = useState('');
+  const [isResetting, setIsResetting]     = useState(false);
 
   const currentUserStr = localStorage.getItem('user');
   const currentUser    = currentUserStr ? JSON.parse(currentUserStr) : null;
@@ -98,6 +101,22 @@ const UserManagement = () => {
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resettingUser || !newPassword) return;
+    setIsResetting(true);
+    try {
+      await api.post(`/admin/users/${resettingUser.id}/reset-password`, { newPassword });
+      showToast(`Password untuk ${resettingUser.name} berhasil direset.`, 'success');
+      setResettingUser(null);
+      setNewPassword('');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal mereset password.', 'error');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handleRoleChange = async (userId, newRole) => {
@@ -381,27 +400,43 @@ const UserManagement = () => {
                         {new Date(user.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
 
-                      {/* Actions */}
                       <td style={{ padding: '16px' }}>
-                        {!isSelf(user.id) && !isSuperAdminTarget(user.role) ? (
-                          <button
-                            id={`delete-user-${user.id}`}
-                            onClick={() => setDeletingUser(user)}
-                            title="Hapus pengguna"
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              width: '36px', height: '36px', borderRadius: '8px',
-                              background: '#fee2e2', color: '#dc2626', border: 'none', cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#fecaca'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#fee2e2'}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>—</span>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {!isSelf(user.id) && !isSuperAdminTarget(user.role) && (
+                            <>
+                              <button
+                                onClick={() => setResettingUser(user)}
+                                title="Reset Password"
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  width: '36px', height: '36px', borderRadius: '8px',
+                                  background: '#fef3c7', color: '#d97706', border: 'none', cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <Key size={16} />
+                              </button>
+                              <button
+                                id={`delete-user-${user.id}`}
+                                onClick={() => setDeletingUser(user)}
+                                title="Hapus pengguna"
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  width: '36px', height: '36px', borderRadius: '8px',
+                                  background: '#fee2e2', color: '#dc2626', border: 'none', cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#fecaca'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#fee2e2'}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                          {(isSelf(user.id) || isSuperAdminTarget(user.role)) && (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -417,6 +452,37 @@ const UserManagement = () => {
           </div>
         )}
       </div>
+      {/* Reset Password Modal */}
+      {resettingUser && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ padding: '32px', maxWidth: '400px', width: '90%' }}>
+            <h3 style={{ marginBottom: '8px' }}>Reset Password</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px' }}>
+              Masukkan password baru untuk <strong>{resettingUser.name}</strong>.
+            </p>
+            <form onSubmit={handleResetPassword}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>Password Baru</label>
+                <input 
+                  type="password" 
+                  className="input" 
+                  placeholder="Min. 6 karakter"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => { setResettingUser(null); setNewPassword(''); }} className="btn" style={{ flex: 1, background: 'var(--bg-light)' }}>Batal</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isResetting}>
+                  {isResetting ? 'Memproses...' : 'Reset Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
