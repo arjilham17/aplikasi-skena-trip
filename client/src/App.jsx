@@ -21,6 +21,7 @@ const PassengerManifest = React.lazy(() => import('./pages/admin/PassengerManife
 const SiteSettings = React.lazy(() => import('./pages/admin/SiteSettings'));
 const ActivityLogs = React.lazy(() => import('./pages/admin/ActivityLogs'));
 const ExpenseManagement = React.lazy(() => import('./pages/admin/ExpenseManagement'));
+const PaymentManagement = React.lazy(() => import('./pages/admin/PaymentManagement'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-light)' }}>
@@ -93,6 +94,7 @@ function App() {
             <Route path="manifest" element={<PassengerManifest />} />
             <Route path="settings" element={<SuperAdminRoute><SiteSettings /></SuperAdminRoute>} />
             <Route path="logs" element={<SuperAdminRoute><ActivityLogs /></SuperAdminRoute>} />
+            <Route path="payments" element={<SuperAdminRoute><PaymentManagement /></SuperAdminRoute>} />
             <Route path="expenses" element={<ExpenseManagement />} />
           </Route>
         </Routes>

@@ -1,6 +1,6 @@
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -57,7 +57,9 @@ model Booking {
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id])
   trip        Trip      @relation(fields: [tripId], references: [id])
-  payments    Payment[]
+  paymentMethodId Int?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  payments        Payment[]
 }
 
 model Payment {
@@ -162,4 +164,18 @@ model ItineraryItem {
   description String?
   tripId      Int
   trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+model PaymentMethod {
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String
+  accountName String?
+  accountNo   String?
+  imageUrl    String?
+  instruction String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bookings    Booking[]
 }

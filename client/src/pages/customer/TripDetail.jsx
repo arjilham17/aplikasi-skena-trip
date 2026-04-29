@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Star, Calendar, MessageSquare, Image as ImageIcon, Clock } from 'lucide-react';
+import { MapPin, Star, Calendar, MessageSquare, Image as ImageIcon, Clock, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const TripDetail = () => {
   const { id } = useParams();
@@ -13,6 +14,9 @@ const TripDetail = () => {
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -20,22 +24,38 @@ const TripDetail = () => {
       .then(res => setTrip(res.data))
       .catch(console.error)
       .finally(() => setIsLoading(false));
+    
+    api.get('/payment-methods')
+      .then(res => {
+        setPaymentMethods(res.data);
+        if (res.data.length > 0) setSelectedMethod(res.data[0]);
+      })
+      .catch(console.error);
   }, [id]);
 
   const [bookingMsg, setBookingMsg] = useState({ text: '', type: '' });
 
-  const handleBooking = async () => {
+  const handleBooking = () => {
     const token = localStorage.getItem('token');
     if (!token) {
       setBookingMsg({ text: 'Silakan login terlebih dahulu untuk memesan.', type: 'error' });
       setTimeout(() => navigate('/login'), 2000);
       return;
     }
+    setShowPaymentModal(true);
+  };
 
+  const confirmBooking = async () => {
     setLoading(true);
     setBookingMsg({ text: '', type: '' });
     try {
-      await api.post('/bookings', { tripId: trip.id, pax, promoCode: appliedPromo ? appliedPromo.code : null });
+      await api.post('/bookings', { 
+        tripId: trip.id, 
+        pax, 
+        promoCode: appliedPromo ? appliedPromo.code : null,
+        paymentMethodId: selectedMethod?.id 
+      });
+      setShowPaymentModal(false);
       setBookingMsg({ text: 'Pemesanan berhasil! Mengarahkan ke Dashboard...', type: 'success' });
       setTimeout(() => navigate('/my-dashboard'), 2000);
     } catch (error) {
@@ -45,6 +65,7 @@ const TripDetail = () => {
         type: 'error',
         incomplete: isIncomplete
       });
+      setShowPaymentModal(false);
     } finally {
       setLoading(false);
     }
@@ -110,8 +131,19 @@ const TripDetail = () => {
   const finalTotal = appliedPromo ? Math.max(0, subTotal - promoValue) : subTotal;
 
   return (
-    <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+      className="container" 
+      style={{ paddingTop: '100px', paddingBottom: '100px' }}
+    >
+      <motion.div 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}
+      >
         <div>
           <h1>{trip.title}</h1>
           <p style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -125,11 +157,39 @@ const TripDetail = () => {
              <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>({trip.reviews?.length} Ulasan)</span>
           </div>
         )}
-      </div>
+      </motion.div>
       
       <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', marginTop: '32px' }}>
-        <div>
-          <img src={trip.image ? `http://localhost:3001${trip.image}` : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"} alt="Trip" style={{ width: '100%', borderRadius: '16px', marginBottom: '32px', objectFit: 'cover', maxHeight: '450px', objectPosition: trip.imagePosition || 'center' }} />
+        <motion.div
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', position: 'relative', marginBottom: '32px' }}>
+            {trip.image ? (
+              <img 
+                src={`http://localhost:3001${trip.image}`} 
+                alt="Trip" 
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
+              />
+            ) : null}
+            <div 
+              style={{ 
+                display: trip.image ? 'none' : 'flex', 
+                width: '100%', 
+                height: '100%', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '16px',
+                color: 'var(--text-muted)'
+              }}
+            >
+              <ImageIcon size={64} strokeWidth={1} />
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>Foto Petualangan Belum Tersedia</span>
+            </div>
+          </div>
           
           <div className="card" style={{ padding: '32px', marginBottom: '32px' }}>
             <h3 style={{ marginBottom: '16px' }}>Deskripsi</h3>
@@ -143,13 +203,32 @@ const TripDetail = () => {
                 <Clock size={24} color="var(--primary)" /> Itinerary Perjalanan
               </h3>
               
-              <div style={{ position: 'relative', paddingLeft: '32px' }}>
+              <motion.div 
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true }}
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.2 }
+                  }
+                }}
+                style={{ position: 'relative', paddingLeft: '32px' }}
+              >
                 {/* Vertical Line */}
                 <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)', zIndex: 0 }}></div>
                 
                 <div style={{ display: 'grid', gap: '40px' }}>
                   {trip.itinerary.map((item, index) => (
-                    <div key={item.id} style={{ position: 'relative' }}>
+                    <motion.div 
+                      key={item.id} 
+                      variants={{
+                        hidden: { opacity: 0, x: -20 },
+                        show: { opacity: 1, x: 0 }
+                      }}
+                      style={{ position: 'relative' }}
+                    >
                       {/* Timeline Dot */}
                       <div style={{ 
                         position: 'absolute', 
@@ -177,10 +256,10 @@ const TripDetail = () => {
                            </div>
                          )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
           )}
 
@@ -231,9 +310,13 @@ const TripDetail = () => {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        <div>
+        <motion.div
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
           <div className="card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
             <h3 style={{ marginBottom: '8px' }}>Detail Harga</h3>
             <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '24px' }}>
@@ -286,6 +369,54 @@ const TripDetail = () => {
               <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '20px' }}>Rp {finalTotal.toLocaleString()}</span>
             </div>
 
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Pilih Metode Pembayaran:</label>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {paymentMethods.map(method => (
+                  <div 
+                    key={method.id} 
+                    onClick={() => setSelectedMethod(method)}
+                    style={{ 
+                      padding: '12px', 
+                      borderRadius: '10px', 
+                      border: `2px solid ${selectedMethod?.id === method.id ? 'var(--primary)' : 'var(--border)'}`,
+                      cursor: 'pointer',
+                      background: selectedMethod?.id === method.id ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontWeight: '700', fontSize: '14px' }}>{method.name}</div>
+                    {selectedMethod?.id === method.id && (
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
+                        {method.type === 'qris' ? (
+                          <div style={{ textAlign: 'center' }}>
+                            <img src={`http://localhost:3001${method.imageUrl}`} alt="QRIS" style={{ width: '100%', maxWidth: '150px', marginBottom: '8px' }} />
+                            <p>Scan QR di atas untuk membayar</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ marginBottom: '4px' }}><strong>No. Rek:</strong> {method.accountNo}</div>
+                            <div><strong>A.N:</strong> {method.accountName}</div>
+                          </div>
+                        )}
+                        {method.instruction && <p style={{ marginTop: '8px', fontStyle: 'italic' }}>{method.instruction}</p>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%', padding: '16px', fontSize: '16px' }}
+              disabled={loading || isFull || !selectedMethod}
+              onClick={confirmBooking}
+            >
+              {loading ? 'Memproses...' : isFull ? 'Trip Penuh' : 'Bayar Sekarang'}
+            </button>
+
+
             {bookingMsg.text && (
               <div style={{ 
                 marginBottom: '16px', 
@@ -319,21 +450,13 @@ const TripDetail = () => {
                 )}
               </div>
             )}
-            <button 
-              className={isFull ? "btn" : "btn btn-accent"} 
-              style={{ width: '100%', padding: '16px', background: isFull ? 'var(--border)' : '', color: isFull ? 'var(--text-muted)' : '', cursor: isFull ? 'not-allowed' : 'pointer' }}
-              onClick={handleBooking}
-              disabled={loading || isFull}
-            >
-              {loading ? 'Memproses...' : isFull ? 'Sudah Penuh' : 'Booking Sekarang'}
-            </button>
             <p style={{ textAlign: 'center', fontSize: '12px', color: isFull ? '#dc2626' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '400' }}>
               {isFull ? 'Maaf, kuota sudah habis terjual!' : `Sisa Kuota: ${remainingSeats} kursi lagi`}
             </p>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

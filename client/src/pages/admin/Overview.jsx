@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle } from 'lucide-react';
+import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminOverview = () => {
   const [bookings, setBookings] = useState([]);
@@ -16,6 +17,7 @@ const AdminOverview = () => {
   const [filterType, setFilterType] = useState('all'); // all, month, week, custom
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -47,6 +49,14 @@ const AdminOverview = () => {
 
   // ─── Filter Logic ────────────────────────────────────────────────────────
   const filteredBookings = bookings.filter(b => {
+    // Search filter
+    const matchesSearch = 
+      b.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.trip.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `#BK-${b.id.toString().padStart(4, '0')}`.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
     if (filterType === 'all') return true;
     const bookingDate = new Date(b.createdAt);
     const now = new Date();
@@ -177,7 +187,11 @@ const AdminOverview = () => {
   );
 
   return (
-    <div>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} 
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Header with Filter & Export */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
         <div>
@@ -201,34 +215,47 @@ const AdminOverview = () => {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="card" style={{ padding: '20px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Filter size={18} color="var(--primary)" />
-          <span style={{ fontWeight: '600', fontSize: '14px' }}>Filter Tanggal:</span>
+      <div className="card grid-responsive" style={{ padding: '20px', marginBottom: '32px', display: 'grid', gridTemplateColumns: '1fr auto', gap: '24px', alignItems: 'center' }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Cari Nama Customer, Trip, atau Booking ID..." 
+            className="input" 
+            style={{ paddingLeft: '40px', margin: 0 }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Filter size={18} color="var(--primary)" />
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>Filter:</span>
+          </div>
         
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {['all', 'month', 'week', 'custom'].map(t => (
-            <button
-              key={t}
-              onClick={() => setFilterType(t)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: filterType === t ? 'var(--primary)' : 'var(--border)',
-                background: filterType === t ? 'var(--primary)' : 'transparent',
-                color: filterType === t ? 'white' : 'var(--text-main)',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {t === 'all' ? 'Semua' : t === 'month' ? 'Bulan Ini' : t === 'week' ? 'Minggu Ini' : 'Custom'}
-            </button>
-          ))}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {['all', 'month', 'week', 'custom'].map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterType(t)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: filterType === t ? 'var(--primary)' : 'var(--border)',
+                  background: filterType === t ? 'var(--primary)' : 'transparent',
+                  color: filterType === t ? 'white' : 'var(--text-main)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {t === 'all' ? 'Semua' : t === 'month' ? 'Bulan Ini' : t === 'week' ? 'Minggu Ini' : 'Custom'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {filterType === 'custom' && (
@@ -382,15 +409,19 @@ const AdminOverview = () => {
                           <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Setujui</button>
                           <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}>Tolak</button>
                           {b.user.whatsapp && (
-                            <a 
-                              href={`https://wa.me/${b.user.whatsapp.replace(/\D/g, '').startsWith('0') ? '62' + b.user.whatsapp.replace(/\D/g, '').slice(1) : b.user.whatsapp.replace(/\D/g, '')}?text=Halo ${encodeURIComponent(b.user.name)}, kami dari Skena Trip ingin menindaklanjuti pesanan Anda #BK-${b.id.toString().padStart(4, '0')} untuk trip ${encodeURIComponent(b.trip.title)}.`}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button 
+                              onClick={() => {
+                                const waNumber = b.user.whatsapp.replace(/\D/g, '').startsWith('0') 
+                                  ? '62' + b.user.whatsapp.replace(/\D/g, '').slice(1) 
+                                  : b.user.whatsapp.replace(/\D/g, '');
+                                const waText = encodeURIComponent(`Halo ${b.user.name}, kami dari Skena Trip ingin menindaklanjuti pesanan Anda #BK-${b.id.toString().padStart(4, '0')} untuk trip ${b.trip.title}.`);
+                                window.open(`https://wa.me/${waNumber}?text=${waText}`, '_blank');
+                              }}
                               className="btn btn-accent"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                              style={{ padding: '6px 12px', fontSize: '12px', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', border: 'none' }}
                             >
                               <MessageCircle size={14} /> WhatsApp
-                            </a>
+                            </button>
                           )}
                           {b.payments && b.payments.length > 0 && (
                             <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
@@ -417,22 +448,34 @@ const AdminOverview = () => {
         </div>
 
       {/* Image Proof Modal */}
-      {selectedProofUrl && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-          <div style={{ position: 'relative', maxWidth: '800px', width: '100%', background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <h4 style={{ margin: 0 }}>Bukti Pembayaran</h4>
-               <button onClick={() => setSelectedProofUrl(null)} style={{ background: '#f1f5f9', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                 <X size={20} color="#64748b"/>
-               </button>
-            </div>
-            <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc' }}>
-               <img src={selectedProofUrl} alt="Bukti Pembayaran" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {selectedProofUrl && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{ position: 'relative', maxWidth: '800px', width: '100%', background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+            >
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h4 style={{ margin: 0 }}>Bukti Pembayaran</h4>
+                 <button onClick={() => setSelectedProofUrl(null)} style={{ background: '#f1f5f9', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                   <X size={20} color="#64748b"/>
+                 </button>
+              </div>
+              <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc' }}>
+                 <img src={selectedProofUrl} alt="Bukti Pembayaran" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
