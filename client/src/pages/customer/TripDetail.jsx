@@ -50,6 +50,10 @@ const TripDetail = () => {
 
   if (!trip) return <div style={{ paddingTop: '100px', textAlign: 'center' }}>Loading...</div>;
 
+  const currentPax = trip.currentPax || 0;
+  const isFull = currentPax >= trip.quota;
+  const remainingSeats = Math.max(0, trip.quota - currentPax);
+
   const subTotal = Math.round(trip.price * pax);
   const promoValue = appliedPromo?.discountType === 'percentage' 
                      ? Math.round(subTotal * (appliedPromo.discountAmount / 100)) 
@@ -61,7 +65,7 @@ const TripDetail = () => {
       <h1>{trip.title}</h1>
       <p style={{ color: 'var(--text-muted)' }}>{trip.destination} &bull; {trip.duration}</p>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', marginTop: '24px' }}>
+      <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', marginTop: '24px' }}>
         <div>
           <img src={trip.image ? `http://localhost:3001${trip.image}` : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"} alt="Trip" style={{ width: '100%', borderRadius: '16px', marginBottom: '24px', objectFit: 'cover', maxHeight: '400px', objectPosition: trip.imagePosition || 'center' }} />
           <h3>Deskripsi</h3>
@@ -122,15 +126,15 @@ const TripDetail = () => {
             </div>
 
             <button 
-              className="btn btn-accent" 
-              style={{ width: '100%', padding: '16px' }}
+              className={isFull ? "btn" : "btn btn-accent"} 
+              style={{ width: '100%', padding: '16px', background: isFull ? 'var(--border)' : '', color: isFull ? 'var(--text-muted)' : '', cursor: isFull ? 'not-allowed' : 'pointer' }}
               onClick={handleBooking}
-              disabled={loading}
+              disabled={loading || isFull}
             >
-              {loading ? 'Memproses...' : 'Booking Sekarang'}
+              {loading ? 'Memproses...' : isFull ? 'Sudah Penuh' : 'Booking Sekarang'}
             </button>
-            <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>
-              Sisa Kuota: {trip.quota} kursi
+            <p style={{ textAlign: 'center', fontSize: '12px', color: isFull ? '#dc2626' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '400' }}>
+              {isFull ? 'Maaf, kuota sudah habis terjual!' : `Sisa Kuota: ${remainingSeats} kursi lagi`}
             </p>
           </div>
         </div>

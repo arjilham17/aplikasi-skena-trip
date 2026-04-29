@@ -45,8 +45,13 @@ const Explore = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
           {filteredTrips.map(trip => (
             <div key={trip.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-              <div style={{ height: '200px', background: 'var(--bg-light)', overflow: 'hidden' }}>
+              <div style={{ height: '200px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
                 <img src={trip.image ? `http://localhost:3001${trip.image}` : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`} alt={trip.title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} />
+                {trip.currentPax >= trip.quota && (
+                  <div style={{ position: 'absolute', top: '16px', right: '16px', background: '#dc2626', color: 'white', padding: '4px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                    PENUH
+                  </div>
+                )}
               </div>
               <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', marginBottom: '8px' }}><MapPin size={16}/> {trip.destination}</div>

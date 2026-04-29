@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import api from '../../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { X } from 'lucide-react';
+import { X, Filter, Download, FileText, Calendar, Table, MessageCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const AdminOverview = () => {
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
-  
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProofUrl, setSelectedProofUrl] = useState(null);
-
-
+  
+  // Filter States
+  const [filterType, setFilterType] = useState('all'); // all, month, week, custom
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -38,8 +40,87 @@ const AdminOverview = () => {
     }
   };
 
+  // ─── Filter Logic ────────────────────────────────────────────────────────
+  const filteredBookings = bookings.filter(b => {
+    if (filterType === 'all') return true;
+    const bookingDate = new Date(b.createdAt);
+    const now = new Date();
+    
+    if (filterType === 'month') {
+      return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear();
+    }
+    if (filterType === 'week') {
+      const startOfWeek = new Date();
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+      startOfWeek.setHours(0,0,0,0);
+      return bookingDate >= startOfWeek;
+    }
+    if (filterType === 'custom') {
+      const start = startDate ? new Date(startDate) : new Date(0);
+      const end = endDate ? new Date(endDate) : new Date();
+      end.setHours(23, 59, 59, 999);
+      return bookingDate >= start && bookingDate <= end;
+    }
+    return true;
+  });
+
+  // ─── Export Logic ────────────────────────────────────────────────────────
+  const prepareExportData = () => {
+    return filteredBookings.map(b => ({
+      'ID Booking': `#BK-${b.id.toString().padStart(4, '0')}`,
+      'Tanggal': new Date(b.createdAt).toLocaleDateString('id-ID'),
+      'Pelanggan': b.user.name,
+      'Email': b.user.email,
+      'Trip': b.trip.title,
+      'Pax': b.pax,
+      'Total Tagihan': b.totalPrice,
+      'Status': b.status.toUpperCase()
+    }));
+  };
+
+  const exportToCSV = () => {
+    const data = prepareExportData();
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => Object.values(row).join(',')).join('\n');
+    const blob = new Blob([`${headers}\n${rows}`], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Penjualan_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  const exportToExcel = () => {
+    const data = prepareExportData();
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
+    XLSX.writeFile(wb, `Laporan_Penjualan_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Laporan Penjualan Skena Trip", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22);
+    
+    const data = prepareExportData();
+    const columns = Object.keys(data[0]);
+    const rows = data.map(row => Object.values(row));
+
+    doc.autoTable({
+      head: [columns],
+      body: rows,
+      startY: 30,
+      styles: { fontSize: 8 },
+      headStyles: { fillStyle: [21, 76, 60] } // #154c3c
+    });
+
+    doc.save(`Laporan_Penjualan_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   // Prepare data for Recharts PieChart
-  const statusCount = bookings.reduce((acc, curr) => {
+  const statusCount = filteredBookings.reduce((acc, curr) => {
     acc[curr.status] = (acc[curr.status] || 0) + 1;
     return acc;
   }, {});
@@ -48,22 +129,103 @@ const AdminOverview = () => {
     name: key.toUpperCase(), value: statusCount[key]
   }));
   
-  // Custom colors matching the Design System Badges
   const COLORS = {
     'PENDING': '#eab308',
     'CONFIRMED': '#059669',
     'CANCELLED': '#dc2626'
   };
 
-  if (loading) return <div style={{ paddingTop: '100px', textAlign: 'center' }}>Loading Admin Data...</div>;
+  if (loading) return (
+    <div style={{ padding: '100px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <p>Loading Admin Data...</p>
+    </div>
+  );
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '32px', marginBottom: '32px' }}>
+      {/* Header with Filter & Export */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Dashboard Penjualan</h1>
+          <p style={{ color: 'var(--text-muted)', margin: '4px 0 0' }}>Pantau performa bisnis dan kelola pesanan</p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {/* Export Dropdown - simplified for UI */}
+          <div style={{ display: 'flex', background: 'var(--bg-white)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+             <button onClick={exportToCSV} className="btn-icon-text" title="Export CSV" style={{ padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
+               <FileText size={16} /> CSV
+             </button>
+             <button onClick={exportToExcel} className="btn-icon-text" title="Export Excel" style={{ padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--text-main)', borderLeft: '1px solid var(--border)' }}>
+               <Table size={16} /> Excel
+             </button>
+             <button onClick={exportToPDF} className="btn-icon-text" title="Export PDF" style={{ padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--text-main)', borderLeft: '1px solid var(--border)' }}>
+               <Download size={16} /> PDF
+             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="card" style={{ padding: '20px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Filter size={18} color="var(--primary)" />
+          <span style={{ fontWeight: '600', fontSize: '14px' }}>Filter Tanggal:</span>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {['all', 'month', 'week', 'custom'].map(t => (
+            <button
+              key={t}
+              onClick={() => setFilterType(t)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: filterType === t ? 'var(--primary)' : 'var(--border)',
+                background: filterType === t ? 'var(--primary)' : 'transparent',
+                color: filterType === t ? 'white' : 'var(--text-main)',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {t === 'all' ? 'Semua' : t === 'month' ? 'Bulan Ini' : t === 'week' ? 'Minggu Ini' : 'Custom'}
+            </button>
+          ))}
+        </div>
+
+        {filterType === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              className="input"
+              style={{ padding: '6px 12px', fontSize: '13px' }}
+            />
+            <span style={{ color: 'var(--text-muted)' }}>s/d</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              className="input"
+              style={{ padding: '6px 12px', fontSize: '13px' }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '32px', marginBottom: '32px' }}>
           {/* Analytics Card */}
           <div className="card" style={{ padding: '24px' }}>
-            <h3>Rasio Pemesanan</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '24px' }}>Status pesanan keseluruhan</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Rasio Pemesanan</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '24px' }}>Status pesanan periode terpilih</p>
+              </div>
+            </div>
             <div style={{ height: '250px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -77,20 +239,33 @@ const AdminOverview = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            {pieData.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Tidak ada data.</p>}
           </div>
 
           {/* Quick Stats Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-             <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <h4 style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Total Pendapatan (Terkonfirmasi)</h4>
-                <p style={{ fontSize: '36px', fontWeight: 'bold', color: 'var(--primary)' }}>
-                  Rp {bookings.filter(b => b.status === 'confirmed').reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString()}
+          <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+             <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
+                   <Calendar size={120} color="var(--primary)" />
+                </div>
+                <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Pendapatan</h4>
+                <p style={{ fontSize: '36px', fontWeight: '850', color: 'var(--primary)', margin: 0 }}>
+                  Rp {filteredBookings.filter(b => b.status === 'confirmed').reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString()}
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                   Dihitung dari pesanan terkonfirmasi
                 </p>
              </div>
-             <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <h4 style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Menunggu Persetujuan Admin</h4>
-                <p style={{ fontSize: '36px', fontWeight: 'bold', color: '#eab308' }}>
-                  {bookings.filter(b => b.status === 'pending').length} Pesanan
+             <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
+                   <FileText size={120} color="#eab308" />
+                </div>
+                <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Menunggu Verifikasi</h4>
+                <p style={{ fontSize: '36px', fontWeight: '850', color: '#eab308', margin: 0 }}>
+                  {filteredBookings.filter(b => b.status === 'pending').length}
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                   Pesanan baru masuk hari ini
                 </p>
              </div>
           </div>
@@ -98,59 +273,86 @@ const AdminOverview = () => {
 
         {/* Bookings Table */}
         <div className="card" style={{ padding: '24px' }}>
-          <h3 style={{ marginBottom: '24px' }}>Manajemen Pesanan Masuk</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h3 style={{ margin: 0 }}>Manajemen Pesanan Masuk</h3>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Menampilkan {filteredBookings.length} pesanan</span>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
                   <th style={{ padding: '16px 0' }}>ID Booking</th>
                   <th>Data Pelanggan</th>
                   <th>Destinasi Trip</th>
                   <th>Pax</th>
                   <th>Total Tagihan</th>
                   <th>Status</th>
-                  <th>Aksi Verifikasi</th>
+                  <th style={{ textAlign: 'right' }}>Aksi Verifikasi</th>
                 </tr>
               </thead>
               <tbody>
-                {bookings.map(b => (
-                  <tr key={b.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '16px 0', fontWeight: '600' }}>#BK-{b.id.toString().padStart(4, '0')}</td>
-                    <td>{b.user.name} <br/><span style={{fontSize:'12px', color:'var(--text-muted)'}}>{b.user.email}</span></td>
+                {filteredBookings.map(b => (
+                  <tr key={b.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                    <td style={{ padding: '16px 0', fontWeight: '700', fontSize: '13px' }}>#BK-{b.id.toString().padStart(4, '0')}</td>
+                    <td>
+                      <div style={{ fontWeight: '600' }}>{b.user.name}</div>
+                      <div style={{fontSize:'12px', color:'var(--text-muted)'}}>{b.user.email}</div>
+                    </td>
                     <td style={{ fontWeight: '500' }}>{b.trip.title}</td>
-                    <td>{b.pax} Orang</td>
-                    <td style={{ fontWeight: '600' }}>Rp {b.totalPrice.toLocaleString()}</td>
+                    <td>{b.pax} <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Orang</span></td>
+                    <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>Rp {b.totalPrice.toLocaleString()}</td>
                     <td>
                       <span className={`badge ${b.status}`}>{b.status.toUpperCase()}</span>
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'right' }}>
                       {b.status === 'pending' ? (
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                           <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Setujui</button>
-                          <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626' }}>Tolak</button>
+                          <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}>Tolak</button>
+                          {b.user.whatsapp && (
+                            <a 
+                              href={`https://wa.me/${b.user.whatsapp.replace(/\D/g, '').startsWith('0') ? '62' + b.user.whatsapp.replace(/\D/g, '').slice(1) : b.user.whatsapp.replace(/\D/g, '')}?text=Halo ${encodeURIComponent(b.user.name)}, kami dari Skena Trip ingin menindaklanjuti pesanan Anda #BK-${b.id.toString().padStart(4, '0')} untuk trip ${encodeURIComponent(b.trip.title)}.`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-accent"
+                              style={{ padding: '6px 12px', fontSize: '12px', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                            >
+                              <MessageCircle size={14} /> WhatsApp
+                            </a>
+                          )}
                           {b.payments && b.payments.length > 0 && (
-                            <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Cek Bukti</button>
+                            <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
                           )}
                         </div>
                       ) : (
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Telah ditangani</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Telah ditangani</span>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {bookings.length === 0 && <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-muted)' }}>Tidak ada pesanan.</p>}
+            {filteredBookings.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '64px 0' }}>
+                 <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Tidak ada pesanan ditemukan dalam rentang waktu ini.</p>
+              </div>
+            )}
           </div>
         </div>
+
       {/* Image Proof Modal */}
       {selectedProofUrl && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }}>
-            <button onClick={() => setSelectedProofUrl(null)} style={{ position: 'absolute', top: '-40px', right: 0, background: 'var(--bg-white)', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer' }}>
-              <X size={24} color="var(--text-main)"/>
-            </button>
-            <img src={selectedProofUrl} alt="Bukti Pembayaran" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px' }} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+          <div style={{ position: 'relative', maxWidth: '800px', width: '100%', background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <h4 style={{ margin: 0 }}>Bukti Pembayaran</h4>
+               <button onClick={() => setSelectedProofUrl(null)} style={{ background: '#f1f5f9', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                 <X size={20} color="#64748b"/>
+               </button>
+            </div>
+            <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc' }}>
+               <img src={selectedProofUrl} alt="Bukti Pembayaran" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+            </div>
           </div>
         </div>
       )}
