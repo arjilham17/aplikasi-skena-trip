@@ -39,7 +39,12 @@ const TripDetail = () => {
       setBookingMsg({ text: 'Pemesanan berhasil! Mengarahkan ke Dashboard...', type: 'success' });
       setTimeout(() => navigate('/my-dashboard'), 2000);
     } catch (error) {
-      setBookingMsg({ text: error.response?.data?.error || 'Gagal melakukan pemesanan', type: 'error' });
+      const isIncomplete = error.response?.data?.incompleteProfile;
+      setBookingMsg({ 
+        text: error.response?.data?.message || error.response?.data?.error || 'Gagal melakukan pemesanan', 
+        type: 'error',
+        incomplete: isIncomplete
+      });
     } finally {
       setLoading(false);
     }
@@ -282,8 +287,36 @@ const TripDetail = () => {
             </div>
 
             {bookingMsg.text && (
-              <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '8px', background: bookingMsg.type === 'error' ? '#fee2e2' : '#d1fae5', color: bookingMsg.type === 'error' ? '#dc2626' : '#059669', fontSize: '13px', fontWeight: '600' }}>
+              <div style={{ 
+                marginBottom: '16px', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                background: bookingMsg.type === 'error' ? '#fee2e2' : '#d1fae5', 
+                color: bookingMsg.type === 'error' ? '#dc2626' : '#059669', 
+                fontSize: '13px', 
+                fontWeight: '600',
+                border: `1px solid ${bookingMsg.type === 'error' ? '#fecaca' : '#34d399'}`
+              }}>
                 {bookingMsg.text}
+                {bookingMsg.incomplete && (
+                  <button 
+                    onClick={() => navigate('/profile')}
+                    style={{ 
+                      display: 'block', 
+                      marginTop: '10px', 
+                      background: '#dc2626', 
+                      color: 'white', 
+                      padding: '8px 12px', 
+                      borderRadius: '6px', 
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      width: '100%',
+                      textAlign: 'center'
+                    }}
+                  >
+                    Lengkapi Profil Sekarang
+                  </button>
+                )}
               </div>
             )}
             <button 
