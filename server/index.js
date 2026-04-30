@@ -8,6 +8,8 @@ const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const sharp = require('sharp');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 
 const prisma = new PrismaClient();
@@ -23,9 +25,33 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+app.use(helmet({
+  contentSecurityPolicy: false, 
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// General rate limit for all API requests
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 200, 
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak permintaan dari IP ini, silakan coba lagi nanti.' }
+});
+app.use('/api/', generalLimiter);
+
+// Strict limiter for auth routes
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 20, 
+  message: { error: 'Terlalu banyak percobaan login/register. Silakan coba lagi dalam 1 jam.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true // Optional: don't count successful logins against the limit
+});
 
 // Konfigurasi Multer
 const storage = multer.diskStorage({
@@ -115,7 +141,7 @@ const optimizeImage = async (file) => {
 // AUTH API (Standard & Google OAuth)
 // ==========================================
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -132,7 +158,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({ where: { email } });
@@ -161,7 +187,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 
 // ── Forgot Password ────────────────────────────────────────────────────────
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email wajib diisi.' });
@@ -565,6 +591,29 @@ app.put('/api/bookings/:id/status', authenticateToken, isAdmin, async (req, res)
     await createActivityLog(req.user.userId, 'UPDATE_BOOKING_STATUS', `Admin mengubah status pesanan #${booking.id} menjadi ${status.toUpperCase()}`);
     res.json(booking);
   } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.delete('/api/bookings/:id', authenticateToken, isSuperAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    
+    // Check if booking exists
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+
+    // Delete related payments
+    await prisma.payment.deleteMany({ where: { bookingId: bookingId } });
+
+    // Delete the booking
+    await prisma.booking.delete({ where: { id: bookingId } });
+
+    await createActivityLog(req.user.userId, 'DELETE_BOOKING', `Super Admin menghapus pesanan #${bookingId} (Customer ID: ${booking.userId})`);
+    await createAdminNotification('DELETION', `Pesanan #${bookingId} telah dihapus oleh ${req.user.name}`);
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 // ==========================================
@@ -1259,8 +1308,21 @@ app.delete('/api/itinerary/:id', authenticateToken, isAdmin, async (req, res) =>
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-const PORT = 3001;
+// ── Serving Frontend Build (Production) ─────────────────────────────────────
+// Pastikan folder '../client/dist' sudah ada (hasil npm run build)
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res) => {
+    // Jika request bukan diawali /api, kirim index.html
+    if (!req.url.startsWith('/api')) {
+      res.sendFile(path.join(clientDistPath, 'index.html'));
+    }
+  });
+}
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
 

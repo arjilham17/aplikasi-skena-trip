@@ -14,7 +14,13 @@ const Home = () => {
     setLoading(true);
     Promise.all([
       api.get('/settings').then(res => setSettings(res.data)),
-      api.get('/reviews/featured').then(res => setFeaturedReviews(res.data))
+      api.get('/reviews/featured').then(res => {
+        if (Array.isArray(res.data)) {
+          setFeaturedReviews(res.data);
+        } else {
+          setFeaturedReviews([]);
+        }
+      })
     ]).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -148,7 +154,7 @@ const Home = () => {
                   </div>
                 ))
               ) : (
-                featuredReviews.map(review => (
+                Array.isArray(featuredReviews) && featuredReviews.map(review => (
                   <motion.div 
                     key={review.id} 
                     variants={{
