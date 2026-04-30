@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle, Search } from 'lucide-react';
+import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle, Search, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -44,6 +44,16 @@ const AdminOverview = () => {
       fetchData(); // Refresh table data after updating
     } catch (err) {
       alert('Gagal mengubah status');
+    }
+  };
+
+  const handleDeleteBooking = async (id) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus pesanan ini? Seluruh data pembayaran terkait juga akan dihapus.')) return;
+    try {
+      await api.delete(`/bookings/${id}`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Gagal menghapus pesanan');
     }
   };
 
@@ -386,7 +396,7 @@ const AdminOverview = () => {
                   <th>Pax</th>
                   <th>Total Tagihan</th>
                   <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Aksi Verifikasi</th>
+                  <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -404,32 +414,45 @@ const AdminOverview = () => {
                       <span className={`badge ${b.status}`}>{b.status.toUpperCase()}</span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {b.status === 'pending' ? (
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                          <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Setujui</button>
-                          <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}>Tolak</button>
-                          {b.user.whatsapp && (
-                            <button 
-                              onClick={() => {
-                                const waNumber = b.user.whatsapp.replace(/\D/g, '').startsWith('0') 
-                                  ? '62' + b.user.whatsapp.replace(/\D/g, '').slice(1) 
-                                  : b.user.whatsapp.replace(/\D/g, '');
-                                const waText = encodeURIComponent(`Halo ${b.user.name}, kami dari Skena Trip ingin menindaklanjuti pesanan Anda #BK-${b.id.toString().padStart(4, '0')} untuk trip ${b.trip.title}.`);
-                                window.open(`https://wa.me/${waNumber}?text=${waText}`, '_blank');
-                              }}
-                              className="btn btn-accent"
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', border: 'none' }}
-                            >
-                              <MessageCircle size={14} /> WhatsApp
-                            </button>
-                          )}
-                          {b.payments && b.payments.length > 0 && (
-                            <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
-                          )}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Telah ditangani</span>
-                      )}
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        {b.status === 'pending' ? (
+                          <>
+                            <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Setujui</button>
+                            <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}>Tolak</button>
+                            {b.user.whatsapp && (
+                              <button 
+                                onClick={() => {
+                                  const waNumber = b.user.whatsapp.replace(/\D/g, '').startsWith('0') 
+                                    ? '62' + b.user.whatsapp.replace(/\D/g, '').slice(1) 
+                                    : b.user.whatsapp.replace(/\D/g, '');
+                                  const waText = encodeURIComponent(`Halo ${b.user.name}, kami dari Skena Trip ingin menindaklanjuti pesanan Anda #BK-${b.id.toString().padStart(4, '0')} untuk trip ${b.trip.title}.`);
+                                  window.open(`https://wa.me/${waNumber}?text=${waText}`, '_blank');
+                                }}
+                                className="btn btn-accent"
+                                style={{ padding: '6px 12px', fontSize: '12px', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', gap: '4px', border: 'none' }}
+                              >
+                                <MessageCircle size={14} /> WhatsApp
+                              </button>
+                            )}
+                            {b.payments && b.payments.length > 0 && (
+                              <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>Telah ditangani</span>
+                        )}
+
+                        {isSuperAdmin && (
+                          <button 
+                            onClick={() => handleDeleteBooking(b.id)} 
+                            className="btn" 
+                            title="Hapus Pesanan"
+                            style={{ padding: '6px', background: '#fee2e2', color: '#dc2626', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
