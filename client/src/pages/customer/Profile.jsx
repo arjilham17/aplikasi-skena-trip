@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { User } from 'lucide-react';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const Profile = () => {
   const [profile, setProfile] = useState({ name: '', address: '', gender: '', whatsapp: '', profilePicUrl: '' });
@@ -75,7 +76,7 @@ const Profile = () => {
 
   return (
     <div className="container" style={{ paddingTop: '100px', minHeight: '80vh', paddingBottom: '100px' }}>
-      <h1 style={{ marginBottom: '32px' }}>Pengaturan Profil</h1>
+      <h1 style={{ marginBottom: '32px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500 }}>Pengaturan Profil</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
         {/* Profile Data Form */}
@@ -85,29 +86,29 @@ const Profile = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
               <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-light)', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid var(--border)' }}>
                 {profile.profilePicUrl ? (
-                  <img src={`http://localhost:3001${profile.profilePicUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={getImageUrl(profile.profilePicUrl)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <User size={40} color="var(--text-muted)" />
                 )}
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Ubah Foto Profil</label>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Ubah Foto Profil</label>
                 <input type="file" accept="image/*" onChange={(e) => setProfilePicFile(e.target.files[0])} className="input" style={{ padding: '8px' }} />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Nama Lengkap</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Nama Lengkap</label>
               <input type="text" className="input" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} required />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Nomor WhatsApp</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Nomor WhatsApp</label>
               <input type="tel" className="input" value={profile.whatsapp} onChange={e => setProfile({...profile, whatsapp: e.target.value})} placeholder="Contoh: 081234567890" />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Jenis Kelamin</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Jenis Kelamin</label>
               <select className="input" value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}>
                 <option value="">Pilih...</option>
                 <option value="Laki-laki">Laki-laki</option>
@@ -116,7 +117,7 @@ const Profile = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Alamat Lengkap</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Alamat Lengkap</label>
               <textarea className="input" rows="3" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})}></textarea>
             </div>
 
@@ -131,12 +132,12 @@ const Profile = () => {
           <h3 style={{ marginBottom: '24px' }}>Ubah Password</h3>
           <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Password Lama</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Password Lama</label>
               <input type="password" className="input" value={passwords.oldPassword} onChange={e => setPasswords({...passwords, oldPassword: e.target.value})} required />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Password Baru</label>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>Password Baru</label>
               <input type="password" className="input" value={passwords.newPassword} onChange={e => setPasswords({...passwords, newPassword: e.target.value})} required minLength="6" />
             </div>
 

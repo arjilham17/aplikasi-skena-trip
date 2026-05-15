@@ -51,18 +51,18 @@ const PromoManagement = () => {
         <h3 style={{ marginBottom: '16px' }}>Buat Promo Baru</h3>
         <form onSubmit={handleAdd} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Kode Promo (cth: DISKON50)</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--text-main)' }}>Kode Promo (cth: DISKON50)</label>
             <input type="text" className="input" value={code} onChange={e => setCode(e.target.value)} required placeholder="KODEPROMO" style={{ textTransform: 'uppercase' }} />
           </div>
           <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Tipe Potongan</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--text-main)' }}>Tipe Potongan</label>
             <select className="input" value={discountType} onChange={e => setDiscountType(e.target.value)}>
               <option value="flat">Nominal (Rp)</option>
               <option value="percentage">Persentase (%)</option>
             </select>
           </div>
           <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Besar Potongan</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--text-main)' }}>Besar Potongan</label>
             <input type="number" className="input" value={discountAmount} onChange={e => setDiscountAmount(e.target.value)} required placeholder={discountType === 'percentage' ? "50" : "50000"} />
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '12px 24px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px' }}><Plus size={20} /> Tambah</button>
@@ -82,7 +82,7 @@ const PromoManagement = () => {
           <tbody>
             {promos.map(p => (
               <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '16px', fontWeight: 'bold', fontSize: '18px', color: 'var(--primary)' }}>{p.code}</td>
+                <td style={{ padding: '16px', fontWeight: 'bold', fontSize: '18px', color: 'var(--text-main)' }}>{p.code}</td>
                 <td style={{ fontWeight: '500' }}>{p.discountType === 'percentage' ? `${p.discountAmount}%` : `Rp ${p.discountAmount.toLocaleString()}`}</td>
                 <td>
                   <button onClick={() => toggleActive(p.id, p.isActive)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: p.isActive ? '#059669' : '#dc2626', fontWeight: '600' }}>

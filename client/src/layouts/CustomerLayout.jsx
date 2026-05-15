@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Compass, User, LogOut, Sun, Moon, Menu, X } from 'lucide-react';
 import api from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const CustomerLayout = () => {
   const navigate = useNavigate();
@@ -73,12 +74,12 @@ const CustomerLayout = () => {
         }}>
           <Link to="/" onClick={() => setIsMenuOpen(false)} style={{ display: 'flex', alignItems: 'center' }}>
             {siteSettings?.logoUrl ? (
-              <img src={`http://localhost:3001${siteSettings.logoUrl}`} alt={siteSettings.siteName} style={{ height: '48px', objectFit: 'contain' }} />
+              <img src={getImageUrl(siteSettings.logoUrl)} alt={siteSettings.siteName} style={{ height: '48px', width: '48px', objectFit: 'cover', borderRadius: '50%' }} />
             ) : (
-              <img src="/logo.jpg" alt="Skena Trip Logo" style={{ height: '48px', objectFit: 'contain' }} />
+              <img src="/logo.jpg" alt="Skena Trip Logo" style={{ height: '48px', width: '48px', objectFit: 'cover', borderRadius: '50%' }} />
             )}
             {(!siteSettings?.logoUrl || windowWidth > 480) && (
-              <span style={{ marginLeft: '12px', fontWeight: '800', fontSize: '20px', color: 'var(--primary)', fontFamily: 'Outfit' }}>
+              <span style={{ marginLeft: '12px', fontWeight: '800', fontSize: '20px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond' }}>
                 {siteSettings?.siteName || 'Skena Trip'}
               </span>
             )}
@@ -103,7 +104,7 @@ const CustomerLayout = () => {
                   <Link to="/profile" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', color: 'var(--text-main)' }}>
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                       {profileData?.profilePicUrl ? (
-                        <img src={`http://localhost:3001${profileData.profilePicUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getImageUrl(profileData.profilePicUrl)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <User size={16} />
                       )}
@@ -146,7 +147,7 @@ const CustomerLayout = () => {
                 <Link to="/profile" onClick={() => setIsMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600' }}>
                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                       {profileData?.profilePicUrl ? (
-                        <img src={`http://localhost:3001${profileData.profilePicUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getImageUrl(profileData.profilePicUrl)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <User size={16} />
                       )}

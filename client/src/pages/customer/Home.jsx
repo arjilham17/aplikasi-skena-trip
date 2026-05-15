@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const Home = () => {
   const [settings, setSettings] = useState(null);
@@ -36,7 +37,7 @@ const Home = () => {
 
   const defaultHero = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920";
   const currentHeroUrl = settings?.heroImages?.length > 0 
-    ? `http://localhost:3001${settings.heroImages[currentImageIndex].url}`
+    ? getImageUrl(settings.heroImages[currentImageIndex].url)
     : defaultHero;
 
   return (
@@ -111,7 +112,7 @@ const Home = () => {
 
       {/* Testimonials Section */}
       {(loading || featuredReviews.length > 0) && (
-        <section style={{ padding: '100px 20px', background: 'var(--bg-white)' }}>
+        <section style={{ padding: '100px 20px', background: 'var(--bg-light)' }}>
           <div className="container">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
@@ -120,8 +121,8 @@ const Home = () => {
               transition={{ duration: 0.8 }}
               style={{ textAlign: 'center', marginBottom: '64px' }}
             >
-              <span style={{ color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '14px' }}>Testimoni</span>
-              <h2 style={{ fontSize: '42px', marginTop: '12px' }}>Apa Kata Mereka?</h2>
+              <span style={{ color: 'var(--accent)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '14px' }}>Testimoni</span>
+              <h2 style={{ fontSize: '42px', marginTop: '12px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif' }}>Apa Kata Mereka?</h2>
             </motion.div>
 
             <motion.div 
@@ -165,7 +166,7 @@ const Home = () => {
                     className="card" 
                     style={{ padding: '32px', position: 'relative', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.3s ease' }}
                   >
-                    <Quote size={40} color="var(--primary)" style={{ opacity: 0.1, position: 'absolute', top: '24px', right: '24px' }} />
+                    <Quote size={40} color="var(--text-main)" style={{ opacity: 0.1, position: 'absolute', top: '24px', right: '24px' }} />
                     
                     <div style={{ display: 'flex', gap: '2px', marginBottom: '20px' }}>
                       {[...Array(5)].map((_, i) => (
@@ -180,7 +181,7 @@ const Home = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '18px' }}>
                         {review.user.profilePicUrl ? (
-                          <img src={`http://localhost:3001${review.user.profilePicUrl}`} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                          <img src={getImageUrl(review.user.profilePicUrl)} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                         ) : review.user.name.charAt(0)}
                       </div>
                       <div>

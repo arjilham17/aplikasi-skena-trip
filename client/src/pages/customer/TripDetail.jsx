@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { MapPin, Star, Calendar, MessageSquare, Image as ImageIcon, Clock, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getImageUrl } from '../../utils/getImageUrl';
+import { LayeredStack } from '../../components/ui/LayeredStack';
 
 const TripDetail = () => {
   const { id } = useParams();
@@ -145,7 +147,7 @@ const TripDetail = () => {
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}
       >
         <div>
-          <h1>{trip.title}</h1>
+          <h1 style={{ color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500, lineHeight: '1.2' }}>{trip.title}</h1>
           <p style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MapPin size={16}/> {trip.destination} &bull; {trip.duration}
           </p>
@@ -165,30 +167,50 @@ const TripDetail = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', position: 'relative', marginBottom: '32px' }}>
-            {trip.image ? (
-              <img 
-                src={`http://localhost:3001${trip.image}`} 
-                alt="Trip" 
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
-              />
-            ) : null}
-            <div 
-              style={{ 
-                display: trip.image ? 'none' : 'flex', 
-                width: '100%', 
-                height: '100%', 
-                flexDirection: 'column',
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: '16px',
-                color: 'var(--text-muted)'
-              }}
-            >
-              <ImageIcon size={64} strokeWidth={1} />
-              <span style={{ fontSize: '14px', fontWeight: '500' }}>Foto Petualangan Belum Tersedia</span>
-            </div>
+          <div style={{ marginBottom: '48px', position: 'relative', zIndex: 10 }}>
+            {trip.images && trip.images.length > 0 ? (
+              <LayeredStack 
+                className="w-full" 
+                style={{ 
+                  minHeight: '450px', 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                  gap: '20px',
+                  padding: '20px',
+                  background: 'var(--bg-light)',
+                  borderRadius: '16px'
+                }}
+              >
+                {trip.images.map((img, i) => (
+                  <img 
+                    key={i} 
+                    src={getImageUrl(img)} 
+                    alt={`Trip Image ${i + 1}`}
+                    style={{ 
+                      width: '100%', 
+                      aspectRatio: '3/4', 
+                      objectFit: 'cover', 
+                      borderRadius: '12px', 
+                      boxShadow: 'var(--shadow-lg)',
+                      border: '4px solid white'
+                    }} 
+                  />
+                ))}
+              </LayeredStack>
+            ) : trip.image ? (
+              <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', position: 'relative' }}>
+                <img 
+                  src={getImageUrl(trip.image)} 
+                  alt="Trip" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
+                />
+              </div>
+            ) : (
+              <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-muted)' }}>
+                <ImageIcon size={64} strokeWidth={1} />
+                <span style={{ fontSize: '14px', fontWeight: '500' }}>Foto Petualangan Belum Tersedia</span>
+              </div>
+            )}
           </div>
           
           <div className="card" style={{ padding: '32px', marginBottom: '32px' }}>
@@ -200,7 +222,7 @@ const TripDetail = () => {
           {trip.itinerary?.length > 0 && (
             <div style={{ marginTop: '48px', marginBottom: '48px' }}>
               <h3 style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Clock size={24} color="var(--primary)" /> Itinerary Perjalanan
+                <Clock size={24} color="var(--accent)" /> Itinerary Perjalanan
               </h3>
               
               <motion.div 
@@ -211,54 +233,83 @@ const TripDetail = () => {
                   hidden: { opacity: 0 },
                   show: {
                     opacity: 1,
-                    transition: { staggerChildren: 0.2 }
+                    transition: { staggerChildren: 0.1 }
                   }
                 }}
-                style={{ position: 'relative', paddingLeft: '32px' }}
+                style={{ display: 'grid', gap: '32px' }}
               >
-                {/* Vertical Line */}
-                <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)', zIndex: 0 }}></div>
-                
-                <div style={{ display: 'grid', gap: '40px' }}>
-                  {trip.itinerary.map((item, index) => (
-                    <motion.div 
-                      key={item.id} 
-                      variants={{
-                        hidden: { opacity: 0, x: -20 },
-                        show: { opacity: 1, x: 0 }
-                      }}
-                      style={{ position: 'relative' }}
-                    >
-                      {/* Timeline Dot */}
-                      <div style={{ 
-                        position: 'absolute', 
-                        left: '-32px', 
-                        top: '4px', 
-                        width: '16px', 
-                        height: '16px', 
-                        borderRadius: '50%', 
-                        background: 'var(--primary)', 
-                        border: '4px solid white',
-                        boxShadow: '0 0 0 1px var(--border)',
-                        zIndex: 1
-                      }}></div>
+                {Object.entries(
+                  trip.itinerary
+                    .sort((a, b) => (a.day - b.day) || a.time.localeCompare(b.time))
+                    .reduce((acc, item) => {
+                      if (!acc[item.day]) acc[item.day] = [];
+                      acc[item.day].push(item);
+                      return acc;
+                    }, {})
+                ).map(([day, items]) => (
+                  <div key={day}>
+                    {/* Day Badge */}
+                    <div style={{ marginBottom: '24px' }}>
+                       <span style={{ 
+                         background: 'var(--accent)', 
+                         color: 'white', 
+                         padding: '6px 16px', 
+                         borderRadius: '100px', 
+                         fontSize: '13px', 
+                         fontWeight: '800',
+                         boxShadow: 'var(--shadow-md)'
+                       }}>
+                         HARI {day}
+                       </span>
+                    </div>
 
-                      <div>
-                         <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '14px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {item.time}
-                         </div>
-                         <div style={{ fontWeight: '700', fontSize: '18px', marginBottom: '8px' }}>
-                            {item.activity}
-                         </div>
-                         {item.description && (
-                           <div style={{ fontSize: '15px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                              {item.description}
-                           </div>
-                         )}
+                    <div style={{ position: 'relative', paddingLeft: '32px' }}>
+                      {/* Vertical Line */}
+                      <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)', zIndex: 0 }}></div>
+                      
+                      <div style={{ display: 'grid', gap: '40px' }}>
+                        {items.map((item) => (
+                          <motion.div 
+                            key={item.id} 
+                            variants={{
+                              hidden: { opacity: 0, x: -20 },
+                              show: { opacity: 1, x: 0 }
+                            }}
+                            style={{ position: 'relative' }}
+                          >
+                            {/* Timeline Dot */}
+                            <div style={{ 
+                              position: 'absolute', 
+                              left: '-32px', 
+                              top: '4px', 
+                              width: '16px', 
+                              height: '16px', 
+                              borderRadius: '50%', 
+                              background: 'var(--accent)', 
+                              border: '4px solid var(--bg-white)',
+                              boxShadow: '0 0 0 1px var(--border)',
+                              zIndex: 1
+                            }}></div>
+
+                            <div>
+                               <div style={{ fontWeight: '800', color: 'var(--accent)', fontSize: '14px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {item.time}
+                               </div>
+                               <div style={{ fontWeight: '700', fontSize: '18px', marginBottom: '8px' }}>
+                                  {item.activity}
+                               </div>
+                               {item.description && (
+                                 <div style={{ fontSize: '15px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                                    {item.description}
+                                 </div>
+                               )}
+                            </div>
+                          </motion.div>
+                        ))}
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </motion.div>
             </div>
           )}
@@ -266,7 +317,7 @@ const TripDetail = () => {
           {/* Reviews Section */}
           <div style={{ marginTop: '48px' }}>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <MessageSquare size={24} color="var(--primary)" /> Ulasan Pelanggan
+              <MessageSquare size={24} color="var(--accent)" /> Ulasan Pelanggan
             </h3>
             
             {(!trip.reviews || trip.reviews.length === 0) ? (
@@ -285,7 +336,7 @@ const TripDetail = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>
                           {review.user.profilePicUrl ? (
-                            <img src={`http://localhost:3001${review.user.profilePicUrl}`} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={getImageUrl(review.user.profilePicUrl)} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : review.user.name.charAt(0)}
                         </div>
                         <div>
@@ -302,7 +353,7 @@ const TripDetail = () => {
                     <p style={{ lineHeight: '1.6', marginBottom: review.imageUrl ? '16px' : 0 }}>{review.comment}</p>
                     {review.imageUrl && (
                       <div style={{ width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                        <img src={`http://localhost:3001${review.imageUrl}`} alt="Review Photo" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => window.open(`http://localhost:3001${review.imageUrl}`, '_blank')} />
+                        <img src={getImageUrl(review.imageUrl)} alt="Review Photo" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => window.open(getImageUrl(review.imageUrl), '_blank')} />
                       </div>
                     )}
                   </div>
@@ -336,7 +387,7 @@ const TripDetail = () => {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Kode Promo:</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--text-main)' }}>Kode Promo:</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="text" 
@@ -346,7 +397,7 @@ const TripDetail = () => {
                   placeholder="Masukkan kode promo"
                   style={{ textTransform: 'uppercase' }}
                 />
-                <button onClick={validatePromo} className="btn" style={{ background: 'var(--bg-light)', border: '1px solid var(--border)' }}>Pakai</button>
+                <button onClick={validatePromo} className="btn" style={{ background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>Pakai</button>
               </div>
               {promoError && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '8px' }}>{promoError}</p>}
               {appliedPromo && <p style={{ color: '#059669', fontSize: '12px', marginTop: '8px' }}>Promo berhasil digunakan! (-{appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : 'Rp ' + appliedPromo.discountAmount.toLocaleString()})</p>}
@@ -365,12 +416,12 @@ const TripDetail = () => {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', paddingTop: '16px', borderTop: '1px dashed var(--border)' }}>
-              <span style={{ fontWeight: 'bold' }}>Total Pembayaran:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '20px' }}>Rp {finalTotal.toLocaleString()}</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>Total Pembayaran:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '20px' }}>Rp {finalTotal.toLocaleString()}</span>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Pilih Metode Pembayaran:</label>
+              <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: 'var(--text-main)' }}>Pilih Metode Pembayaran:</label>
               <div style={{ display: 'grid', gap: '10px' }}>
                 {paymentMethods.map(method => (
                   <div 
@@ -379,9 +430,9 @@ const TripDetail = () => {
                     style={{ 
                       padding: '12px', 
                       borderRadius: '10px', 
-                      border: `2px solid ${selectedMethod?.id === method.id ? 'var(--primary)' : 'var(--border)'}`,
+                      border: `2px solid ${selectedMethod?.id === method.id ? 'var(--accent)' : 'var(--border)'}`,
                       cursor: 'pointer',
-                      background: selectedMethod?.id === method.id ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
+                      background: selectedMethod?.id === method.id ? 'rgba(201, 115, 58, 0.1)' : 'transparent',
                       transition: 'all 0.2s'
                     }}
                   >
@@ -390,7 +441,7 @@ const TripDetail = () => {
                       <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
                         {method.type === 'qris' ? (
                           <div style={{ textAlign: 'center' }}>
-                            <img src={`http://localhost:3001${method.imageUrl}`} alt="QRIS" style={{ width: '100%', maxWidth: '150px', marginBottom: '8px' }} />
+                            <img src={getImageUrl(method.imageUrl)} alt="QRIS" style={{ width: '100%', maxWidth: '150px', marginBottom: '8px' }} />
                             <p>Scan QR di atas untuk membayar</p>
                           </div>
                         ) : (

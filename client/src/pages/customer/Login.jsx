@@ -11,10 +11,17 @@ const Login = () => {
   const [loginAnim, setLoginAnim] = useState(null);
 
   useEffect(() => {
-    fetch('https://lottie.host/85955b74-3404-4f05-874b-c40787e9545f/LAti6G00vN.json')
-      .then(res => res.json())
+    // Menggunakan URL yang lebih stabil dan mengembalikan JSON asli
+    fetch('https://assets10.lottiefiles.com/packages/lf20_6wutsrox.json')
+      .then(res => {
+        if (!res.ok) throw new Error('Network response was not ok');
+        return res.json();
+      })
       .then(data => setLoginAnim(data))
-      .catch(err => console.error('Lottie error:', err));
+      .catch(err => {
+        console.error('Lottie error:', err);
+        // Fallback jika fetch gagal (opsional: bisa set animasi default di sini)
+      });
   }, []);
 
 
@@ -46,7 +53,7 @@ const Login = () => {
         <div style={{ width: '120px', height: '120px', margin: '0 auto 16px auto' }}>
           {loginAnim && <Lottie animationData={loginAnim} loop={true} />}
         </div>
-        <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif' }}>
           {isLogin ? 'Selamat Datang Kembali' : 'Daftar Akun Baru'}
         </h1>
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '24px' }}>

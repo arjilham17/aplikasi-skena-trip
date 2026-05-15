@@ -16,6 +16,13 @@ const prisma = new PrismaClient();
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'skena-trip-secret-key';
 
+// ── Pastikan folder uploads tersedia (Penting untuk Deployment) ───────────────
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+  console.log('Folder uploads dibuat secara otomatis.');
+}
+
 // ── Nodemailer transporter ──────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -29,14 +36,24 @@ app.use(helmet({
   contentSecurityPolicy: false, 
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
+const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : ['http://localhost:5173'];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // General rate limit for all API requests
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 200, 
+  max: 1000, 
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Terlalu banyak permintaan dari IP ini, silakan coba lagi nanti.' }
@@ -381,7 +398,7 @@ app.get('/api/trips/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), async (req, res) => {
+app.post('/api/trips', authenticateToken, isAdmin, upload.array('imageFiles', 6), async (req, res) => {
   try {
     const { title, description, destination, date, price, quota, duration, imagePosition } = req.body;
     let data = {
@@ -395,9 +412,15 @@ app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), a
       imagePosition: imagePosition || 'center'
     };
 
-    if (req.file) {
-      await optimizeImage(req.file);
-      data.image = `/uploads/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      const images = [];
+      for (const file of req.files) {
+        await optimizeImage(file);
+        images.push(`/uploads/${file.filename}`);
+      }
+      data.images = images;
+      const thumbIdx = parseInt(req.body.thumbnailIndex) || 0;
+      data.image = images[thumbIdx] || images[0];
     }
     
     const trip = await prisma.trip.create({ data });
@@ -406,7 +429,7 @@ app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), a
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.put('/api/trips/:id', authenticateToken, isAdmin, upload.single('imageFile'), async (req, res) => {
+app.put('/api/trips/:id', authenticateToken, isAdmin, upload.array('imageFiles', 6), async (req, res) => {
   try {
     const { title, description, destination, date, price, quota, duration, imagePosition } = req.body;
     let data = {};
@@ -419,9 +442,17 @@ app.put('/api/trips/:id', authenticateToken, isAdmin, upload.single('imageFile')
     if (duration) data.duration = duration;
     if (imagePosition) data.imagePosition = imagePosition;
     
-    if (req.file) {
-      await optimizeImage(req.file);
-      data.image = `/uploads/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      const images = [];
+      for (const file of req.files) {
+        await optimizeImage(file);
+        images.push(`/uploads/${file.filename}`);
+      }
+      data.images = images;
+      const thumbIdx = parseInt(req.body.thumbnailIndex) || 0;
+      data.image = images[thumbIdx] || images[0];
+    } else if (req.body.selectedThumbnail) {
+      data.image = req.body.selectedThumbnail;
     }
 
     const trip = await prisma.trip.update({
@@ -1222,7 +1253,7 @@ app.get('/api/admin/payment-methods', authenticateToken, isAdmin, async (req, re
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction } = req.body;
     let imageUrl = null;
@@ -1248,7 +1279,7 @@ app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.s
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction, isActive } = req.body;
     let data = {};
@@ -1288,9 +1319,10 @@ app.delete('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, as
 
 app.post('/api/trips/:id/itinerary', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { time, activity, description } = req.body;
+    const { day, time, activity, description } = req.body;
     const item = await prisma.itineraryItem.create({
       data: {
+        day: parseInt(day) || 1,
         time,
         activity,
         description,
@@ -1298,6 +1330,24 @@ app.post('/api/trips/:id/itinerary', authenticateToken, isAdmin, async (req, res
       }
     });
     res.status(201).json(item);
+  } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+app.post('/api/trips/:id/itinerary/bulk', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const items = req.body; 
+    const tripId = parseInt(req.params.id);
+    if (!Array.isArray(items)) return res.status(400).json({ error: 'Data harus berupa array.' });
+    const createdItems = await prisma.itineraryItem.createMany({
+      data: items.map(item => ({
+        day: parseInt(item.day) || 1,
+        time: item.time,
+        activity: item.activity,
+        description: item.description || '',
+        tripId
+      }))
+    });
+    res.status(201).json({ count: createdItems.count });
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
@@ -1313,7 +1363,7 @@ app.delete('/api/itinerary/:id', authenticateToken, isAdmin, async (req, res) =>
 const clientDistPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
-  app.get('*', (req, res) => {
+  app.get('*path', (req, res) => {
     // Jika request bukan diawali /api, kirim index.html
     if (!req.url.startsWith('/api')) {
       res.sendFile(path.join(clientDistPath, 'index.html'));
@@ -1321,8 +1371,16 @@ if (fs.existsSync(clientDistPath)) {
   });
 }
 
+// ── Global Error Handler ────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: err.message || 'Terjadi kesalahan pada server',
+    details: process.env.NODE_ENV === 'development' ? err : {}
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
