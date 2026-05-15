@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Plus, X, Trash, CreditCard, QrCode, ToggleLeft, ToggleRight, Info } from 'lucide-react';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const PaymentManagement = () => {
   const [methods, setMethods] = useState([]);
@@ -112,7 +113,7 @@ const PaymentManagement = () => {
 
             {method.imageUrl && (
               <div style={{ width: '100%', height: '100px', background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
-                <img src={`http://localhost:3001${method.imageUrl}`} alt="QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={getImageUrl(method.imageUrl)} alt="QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             )}
 

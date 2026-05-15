@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const AdminOverview = () => {
   const [bookings, setBookings] = useState([]);
@@ -435,7 +436,7 @@ const AdminOverview = () => {
                               </button>
                             )}
                             {b.payments && b.payments.length > 0 && (
-                              <button onClick={() => setSelectedProofUrl(b.payments[0].proofUrl.startsWith('http') ? b.payments[0].proofUrl : `http://localhost:3001${b.payments[0].proofUrl}`)} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
+                              <button onClick={() => setSelectedProofUrl(getImageUrl(b.payments[0].proofUrl))} className="btn btn-accent" style={{ padding: '6px 12px', fontSize: '12px' }}>Bukti</button>
                             )}
                           </>
                         ) : (

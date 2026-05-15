@@ -4,6 +4,7 @@ import {
   Users, Search, Shield, ShieldCheck, ShieldAlert,
   Trash2, UserCog, ChevronDown, X, AlertTriangle, Key
 } from 'lucide-react';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 // ─── Role Config ────────────────────────────────────────────
 const ROLES = {
@@ -320,7 +321,7 @@ const UserManagement = () => {
                             color: 'white', fontWeight: '700', fontSize: '15px', overflow: 'hidden'
                           }}>
                             {user.profilePicUrl
-                              ? <img src={`http://localhost:3001${user.profilePicUrl}`} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ? <img src={getImageUrl(user.profilePicUrl)} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               : user.name.charAt(0).toUpperCase()}
                           </div>
                           <div>

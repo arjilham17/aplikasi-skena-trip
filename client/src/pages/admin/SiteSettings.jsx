@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Settings, Save, Upload, Globe, Phone, Mail, MapPin, TrendingUp, Image, Plus, Trash, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from '../../components/ConfirmModal';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const SiteSettings = () => {
   const [settings, setSettings] = useState({
@@ -34,7 +35,7 @@ const SiteSettings = () => {
       const res = await api.get('/settings');
       setSettings(res.data);
       if (res.data?.logoUrl) {
-        setPreviewUrl(`http://localhost:3001${res.data.logoUrl}`);
+        setPreviewUrl(getImageUrl(res.data.logoUrl));
       }
     } catch (err) {
       console.error('Gagal memuat pengaturan', err);
@@ -211,7 +212,7 @@ const SiteSettings = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '12px' }}>
                     {settings.heroImages.map(img => (
                       <div key={img.id} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                        <img src={`http://localhost:3001${img.url}`} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getImageUrl(img.url)} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <button 
                           onClick={(e) => {
                             e.preventDefault();

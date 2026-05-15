@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const Home = () => {
   const [settings, setSettings] = useState(null);
@@ -36,7 +37,7 @@ const Home = () => {
 
   const defaultHero = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920";
   const currentHeroUrl = settings?.heroImages?.length > 0 
-    ? `http://localhost:3001${settings.heroImages[currentImageIndex].url}`
+    ? getImageUrl(settings.heroImages[currentImageIndex].url)
     : defaultHero;
 
   return (
@@ -180,7 +181,7 @@ const Home = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '18px' }}>
                         {review.user.profilePicUrl ? (
-                          <img src={`http://localhost:3001${review.user.profilePicUrl}`} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                          <img src={getImageUrl(review.user.profilePicUrl)} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                         ) : review.user.name.charAt(0)}
                       </div>
                       <div>

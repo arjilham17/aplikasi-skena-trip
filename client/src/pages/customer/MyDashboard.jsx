@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { X, Download, Star, Image as ImageIcon, ShoppingBag } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const MyDashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -23,7 +24,6 @@ const MyDashboard = () => {
   const [reviewTripId, setReviewTripId] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
-  const [reviewImage, setReviewImage] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -58,7 +58,6 @@ const MyDashboard = () => {
     formData.append('tripId', reviewTripId);
     formData.append('rating', rating);
     formData.append('comment', comment);
-    if (reviewImage) formData.append('reviewImage', reviewImage);
 
     try {
       await api.post('/reviews', formData);
@@ -66,7 +65,6 @@ const MyDashboard = () => {
       setShowReviewModal(false);
       setRating(5);
       setComment('');
-      setReviewImage(null);
       fetchBookings();
     } catch (err) {
       alert(err.response?.data?.error || 'Gagal mengirim ulasan');
@@ -243,7 +241,7 @@ const MyDashboard = () => {
                       {paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.type === 'qris' ? (
                         <div style={{ textAlign: 'center' }}>
                            <img 
-                             src={`http://localhost:3001${paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.imageUrl}`} 
+                             src={getImageUrl(paymentMethods.find(m => m.id.toString() === selectedMethodId.toString())?.imageUrl)} 
                              alt="QRIS" 
                              style={{ width: '100%', maxWidth: '150px', marginBottom: '8px', borderRadius: '4px' }} 
                            />
@@ -301,7 +299,7 @@ const MyDashboard = () => {
             <div style={{ background: 'var(--primary)', color: 'white', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <img 
-                  src={siteSettings?.logoUrl ? `http://localhost:3001${siteSettings.logoUrl}` : "/logo.jpg"} 
+                  src={siteSettings?.logoUrl ? getImageUrl(siteSettings.logoUrl) : "/logo.jpg"} 
                   alt="Logo" 
                   style={{ height: '40px', background: 'white', borderRadius: '4px', padding: '4px', minWidth: '40px', objectFit: 'contain' }} 
                 />
@@ -403,14 +401,6 @@ const MyDashboard = () => {
                       onChange={(e) => setComment(e.target.value)}
                       required
                     ></textarea>
-                 </div>
-
-                 <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Foto Trip (Opsional)</label>
-                    <label className="btn" style={{ width: '100%', background: 'var(--bg-light)', border: '1px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <ImageIcon size={18}/> {reviewImage ? reviewImage.name : 'Pilih Foto'}
-                      <input type="file" hidden accept="image/*" onChange={(e) => setReviewImage(e.target.files[0])} />
-                    </label>
                  </div>
 
                  <button type="submit" className="btn btn-primary" style={{ padding: '12px' }} disabled={loading}>

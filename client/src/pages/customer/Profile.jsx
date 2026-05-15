@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { User } from 'lucide-react';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const Profile = () => {
   const [profile, setProfile] = useState({ name: '', address: '', gender: '', whatsapp: '', profilePicUrl: '' });
@@ -85,7 +86,7 @@ const Profile = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
               <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-light)', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid var(--border)' }}>
                 {profile.profilePicUrl ? (
-                  <img src={`http://localhost:3001${profile.profilePicUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={getImageUrl(profile.profilePicUrl)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <User size={40} color="var(--text-muted)" />
                 )}

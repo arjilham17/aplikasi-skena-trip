@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Plane, Receipt, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, Menu, X, Sun, Moon, History, Wallet, AlertTriangle, Check } from 'lucide-react';
 import api from '../services/api';
+import { getImageUrl } from '../utils/getImageUrl';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -130,11 +131,11 @@ const AdminLayout = () => {
         <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {siteSettings?.logoUrl ? (
-              <img src={`http://localhost:3001${siteSettings.logoUrl}`} alt="Logo" style={{ height: '32px' }} />
+              <img src={getImageUrl(siteSettings.logoUrl)} alt="Logo" style={{ height: '32px' }} />
             ) : (
               <img src="/logo.jpg" alt="Logo" style={{ height: '32px' }} />
             )}
-            <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--primary)' }}>{siteSettings?.siteName || 'Admin Center'}</h2>
+            <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--primary)', fontFamily: 'Cormorant Garamond', fontWeight: '700' }}>{siteSettings?.siteName || 'Admin Center'}</h2>
           </div>
         </div>
         
@@ -154,7 +155,7 @@ const AdminLayout = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                {profileData?.profilePicUrl ? (
-                 <img src={`http://localhost:3001${profileData.profilePicUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                 <img src={getImageUrl(profileData.profilePicUrl)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                ) : (
                  <User size={20} />
                )}
@@ -186,9 +187,9 @@ const AdminLayout = () => {
             {isSuperAdmin && (
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setShowAlerts(!showAlerts)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative' }}>
-                  <AlertTriangle size={22} color={alertCount > 0 ? '#e88915' : 'var(--text-muted)'} />
+                  <AlertTriangle size={22} color={alertCount > 0 ? 'var(--accent)' : 'var(--text-muted)'} />
                   {alertCount > 0 && (
-                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#e88915', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>{alertCount}</span>
+                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--accent)', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>{alertCount}</span>
                   )}
                 </button>
                 {showAlerts && (
@@ -220,7 +221,7 @@ const AdminLayout = () => {
                               opacity: alert.isRead ? 0.6 : 1
                             }}
                           >
-                            <div style={{ fontWeight: '700', marginBottom: '4px', color: alert.type === 'DELETION' ? '#dc2626' : '#e88915', display: 'flex', justifyContent: 'space-between' }}>
+                            <div style={{ fontWeight: '700', marginBottom: '4px', color: alert.type === 'DELETION' ? '#dc2626' : 'var(--accent)', display: 'flex', justifyContent: 'space-between' }}>
                               {alert.type === 'DELETION' ? 'Penghapusan Data' : 'Pengeluaran Tinggi'}
                               {alert.isRead && <Check size={14} color="#059669" />}
                             </div>

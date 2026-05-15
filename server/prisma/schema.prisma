@@ -159,6 +159,7 @@ model Review {
 
 model ItineraryItem {
   id          Int      @id @default(autoincrement())
+  day         Int      @default(1)
   time        String
   activity    String
   description String?

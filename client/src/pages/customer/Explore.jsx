@@ -4,20 +4,15 @@ import api from '../../services/api';
 import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users, Image as ImageIcon } from 'lucide-react';
 import Lottie from 'lottie-react';
 import { motion } from 'framer-motion';
+import { getImageUrl } from '../../utils/getImageUrl';
+
+import emptyAnim from '../../assets/empty-trip.json';
 
 const Explore = () => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
-  const [emptyAnim, setEmptyAnim] = useState(null);
-
-  useEffect(() => {
-    fetch('https://lottie.host/7469795e-1490-449e-b12e-a0e44501a4e1/zLd1MvF3O1.json')
-      .then(res => res.json())
-      .then(data => setEmptyAnim(data))
-      .catch(err => console.error('Lottie error:', err));
-  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -138,8 +133,9 @@ const Explore = () => {
               <div style={{ height: '220px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
                 {trip.image ? (
                   <img 
-                    src={`http://localhost:3001${trip.image}`} 
+                    src={getImageUrl(trip.image)} 
                     alt={trip.title} 
+
                     loading="lazy"
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 

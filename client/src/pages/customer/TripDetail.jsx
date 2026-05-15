@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { MapPin, Star, Calendar, MessageSquare, Image as ImageIcon, Clock, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getImageUrl } from '../../utils/getImageUrl';
 
 const TripDetail = () => {
   const { id } = useParams();
@@ -168,7 +169,7 @@ const TripDetail = () => {
           <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', position: 'relative', marginBottom: '32px' }}>
             {trip.image ? (
               <img 
-                src={`http://localhost:3001${trip.image}`} 
+                src={getImageUrl(trip.image)} 
                 alt="Trip" 
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
@@ -211,54 +212,83 @@ const TripDetail = () => {
                   hidden: { opacity: 0 },
                   show: {
                     opacity: 1,
-                    transition: { staggerChildren: 0.2 }
+                    transition: { staggerChildren: 0.1 }
                   }
                 }}
-                style={{ position: 'relative', paddingLeft: '32px' }}
+                style={{ display: 'grid', gap: '32px' }}
               >
-                {/* Vertical Line */}
-                <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)', zIndex: 0 }}></div>
-                
-                <div style={{ display: 'grid', gap: '40px' }}>
-                  {trip.itinerary.map((item, index) => (
-                    <motion.div 
-                      key={item.id} 
-                      variants={{
-                        hidden: { opacity: 0, x: -20 },
-                        show: { opacity: 1, x: 0 }
-                      }}
-                      style={{ position: 'relative' }}
-                    >
-                      {/* Timeline Dot */}
-                      <div style={{ 
-                        position: 'absolute', 
-                        left: '-32px', 
-                        top: '4px', 
-                        width: '16px', 
-                        height: '16px', 
-                        borderRadius: '50%', 
-                        background: 'var(--primary)', 
-                        border: '4px solid white',
-                        boxShadow: '0 0 0 1px var(--border)',
-                        zIndex: 1
-                      }}></div>
+                {Object.entries(
+                  trip.itinerary
+                    .sort((a, b) => (a.day - b.day) || a.time.localeCompare(b.time))
+                    .reduce((acc, item) => {
+                      if (!acc[item.day]) acc[item.day] = [];
+                      acc[item.day].push(item);
+                      return acc;
+                    }, {})
+                ).map(([day, items]) => (
+                  <div key={day}>
+                    {/* Day Badge */}
+                    <div style={{ marginBottom: '24px' }}>
+                       <span style={{ 
+                         background: 'var(--primary)', 
+                         color: 'white', 
+                         padding: '6px 16px', 
+                         borderRadius: '100px', 
+                         fontSize: '13px', 
+                         fontWeight: '800',
+                         boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
+                       }}>
+                         HARI {day}
+                       </span>
+                    </div>
 
-                      <div>
-                         <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '14px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {item.time}
-                         </div>
-                         <div style={{ fontWeight: '700', fontSize: '18px', marginBottom: '8px' }}>
-                            {item.activity}
-                         </div>
-                         {item.description && (
-                           <div style={{ fontSize: '15px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                              {item.description}
-                           </div>
-                         )}
+                    <div style={{ position: 'relative', paddingLeft: '32px' }}>
+                      {/* Vertical Line */}
+                      <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', background: 'var(--border)', zIndex: 0 }}></div>
+                      
+                      <div style={{ display: 'grid', gap: '40px' }}>
+                        {items.map((item) => (
+                          <motion.div 
+                            key={item.id} 
+                            variants={{
+                              hidden: { opacity: 0, x: -20 },
+                              show: { opacity: 1, x: 0 }
+                            }}
+                            style={{ position: 'relative' }}
+                          >
+                            {/* Timeline Dot */}
+                            <div style={{ 
+                              position: 'absolute', 
+                              left: '-32px', 
+                              top: '4px', 
+                              width: '16px', 
+                              height: '16px', 
+                              borderRadius: '50%', 
+                              background: 'var(--primary)', 
+                              border: '4px solid white',
+                              boxShadow: '0 0 0 1px var(--border)',
+                              zIndex: 1
+                            }}></div>
+
+                            <div>
+                               <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '14px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {item.time}
+                               </div>
+                               <div style={{ fontWeight: '700', fontSize: '18px', marginBottom: '8px' }}>
+                                  {item.activity}
+                               </div>
+                               {item.description && (
+                                 <div style={{ fontSize: '15px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                                    {item.description}
+                                 </div>
+                               )}
+                            </div>
+                          </motion.div>
+                        ))}
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </motion.div>
             </div>
           )}
@@ -285,7 +315,7 @@ const TripDetail = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>
                           {review.user.profilePicUrl ? (
-                            <img src={`http://localhost:3001${review.user.profilePicUrl}`} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            <img src={getImageUrl(review.user.profilePicUrl)} alt={review.user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : review.user.name.charAt(0)}
                         </div>
                         <div>
@@ -302,7 +332,7 @@ const TripDetail = () => {
                     <p style={{ lineHeight: '1.6', marginBottom: review.imageUrl ? '16px' : 0 }}>{review.comment}</p>
                     {review.imageUrl && (
                       <div style={{ width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                        <img src={`http://localhost:3001${review.imageUrl}`} alt="Review Photo" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => window.open(`http://localhost:3001${review.imageUrl}`, '_blank')} />
+                        <img src={getImageUrl(review.imageUrl)} alt="Review Photo" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} onClick={() => window.open(getImageUrl(review.imageUrl), '_blank')} />
                       </div>
                     )}
                   </div>
@@ -390,7 +420,7 @@ const TripDetail = () => {
                       <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
                         {method.type === 'qris' ? (
                           <div style={{ textAlign: 'center' }}>
-                            <img src={`http://localhost:3001${method.imageUrl}`} alt="QRIS" style={{ width: '100%', maxWidth: '150px', marginBottom: '8px' }} />
+                            <img src={getImageUrl(method.imageUrl)} alt="QRIS" style={{ width: '100%', maxWidth: '150px', marginBottom: '8px' }} />
                             <p>Scan QR di atas untuk membayar</p>
                           </div>
                         ) : (
