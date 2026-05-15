@@ -34,6 +34,7 @@ model Trip {
   price       Float
   quota       Int
   image       String?
+  images      Json?
   imagePosition String? @default("center")
   duration    String?
   rating      Float?

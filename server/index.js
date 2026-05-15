@@ -53,7 +53,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // General rate limit for all API requests
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 200, 
+  max: 1000, 
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Terlalu banyak permintaan dari IP ini, silakan coba lagi nanti.' }
@@ -398,7 +398,7 @@ app.get('/api/trips/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), async (req, res) => {
+app.post('/api/trips', authenticateToken, isAdmin, upload.array('imageFiles', 6), async (req, res) => {
   try {
     const { title, description, destination, date, price, quota, duration, imagePosition } = req.body;
     let data = {
@@ -412,9 +412,15 @@ app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), a
       imagePosition: imagePosition || 'center'
     };
 
-    if (req.file) {
-      await optimizeImage(req.file);
-      data.image = `/uploads/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      const images = [];
+      for (const file of req.files) {
+        await optimizeImage(file);
+        images.push(`/uploads/${file.filename}`);
+      }
+      data.images = images;
+      const thumbIdx = parseInt(req.body.thumbnailIndex) || 0;
+      data.image = images[thumbIdx] || images[0];
     }
     
     const trip = await prisma.trip.create({ data });
@@ -423,7 +429,7 @@ app.post('/api/trips', authenticateToken, isAdmin, upload.single('imageFile'), a
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.put('/api/trips/:id', authenticateToken, isAdmin, upload.single('imageFile'), async (req, res) => {
+app.put('/api/trips/:id', authenticateToken, isAdmin, upload.array('imageFiles', 6), async (req, res) => {
   try {
     const { title, description, destination, date, price, quota, duration, imagePosition } = req.body;
     let data = {};
@@ -436,9 +442,17 @@ app.put('/api/trips/:id', authenticateToken, isAdmin, upload.single('imageFile')
     if (duration) data.duration = duration;
     if (imagePosition) data.imagePosition = imagePosition;
     
-    if (req.file) {
-      await optimizeImage(req.file);
-      data.image = `/uploads/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      const images = [];
+      for (const file of req.files) {
+        await optimizeImage(file);
+        images.push(`/uploads/${file.filename}`);
+      }
+      data.images = images;
+      const thumbIdx = parseInt(req.body.thumbnailIndex) || 0;
+      data.image = images[thumbIdx] || images[0];
+    } else if (req.body.selectedThumbnail) {
+      data.image = req.body.selectedThumbnail;
     }
 
     const trip = await prisma.trip.update({
@@ -1239,7 +1253,7 @@ app.get('/api/admin/payment-methods', authenticateToken, isAdmin, async (req, re
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction } = req.body;
     let imageUrl = null;
@@ -1265,7 +1279,7 @@ app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.s
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
+app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction, isActive } = req.body;
     let data = {};

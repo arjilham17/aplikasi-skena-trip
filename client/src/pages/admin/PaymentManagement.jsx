@@ -93,11 +93,11 @@ const PaymentManagement = () => {
         {methods.map(method => (
           <div key={method.id} className="card" style={{ padding: '24px', opacity: method.isActive ? 1 : 0.6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div style={{ padding: '12px', background: 'var(--bg-light)', borderRadius: '12px', color: 'var(--primary)' }}>
+              <div style={{ padding: '12px', background: 'var(--bg-light)', borderRadius: '12px', color: 'var(--accent)' }}>
                 {method.type === 'qris' ? <QrCode size={24}/> : <CreditCard size={24}/>}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => toggleStatus(method)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: method.isActive ? 'var(--primary)' : 'var(--text-muted)' }}>
+                <button onClick={() => toggleStatus(method)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: method.isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
                   {method.isActive ? <ToggleRight size={24}/> : <ToggleLeft size={24}/>}
                 </button>
                 <button onClick={() => handleDelete(method.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626' }}>
@@ -117,7 +117,7 @@ const PaymentManagement = () => {
               </div>
             )}
 
-            <button onClick={() => handleOpenModal(method)} className="btn" style={{ width: '100%', background: 'var(--bg-light)', border: '1px solid var(--border)', fontSize: '14px' }}>
+            <button onClick={() => handleOpenModal(method)} className="btn" style={{ width: '100%', background: 'var(--bg-light)', border: '1px solid var(--border)', fontSize: '14px', color: 'var(--text-main)' }}>
               Edit Detail
             </button>
           </div>
@@ -127,7 +127,7 @@ const PaymentManagement = () => {
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '32px', position: 'relative' }}>
-            <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={24}/></button>
+            <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={24}/></button>
             <h3 style={{ marginBottom: '24px' }}>{editingMethod ? 'Edit Metode' : 'Tambah Metode Baru'}</h3>
             
             <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '16px' }}>

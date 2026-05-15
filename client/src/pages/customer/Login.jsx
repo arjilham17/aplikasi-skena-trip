@@ -53,7 +53,7 @@ const Login = () => {
         <div style={{ width: '120px', height: '120px', margin: '0 auto 16px auto' }}>
           {loginAnim && <Lottie animationData={loginAnim} loop={true} />}
         </div>
-        <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '8px', textAlign: 'center', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif' }}>
           {isLogin ? 'Selamat Datang Kembali' : 'Daftar Akun Baru'}
         </h1>
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '24px' }}>

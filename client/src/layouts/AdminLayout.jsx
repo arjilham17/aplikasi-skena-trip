@@ -131,11 +131,11 @@ const AdminLayout = () => {
         <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {siteSettings?.logoUrl ? (
-              <img src={getImageUrl(siteSettings.logoUrl)} alt="Logo" style={{ height: '32px' }} />
+              <img src={getImageUrl(siteSettings.logoUrl)} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'cover', borderRadius: '50%' }} />
             ) : (
-              <img src="/logo.jpg" alt="Logo" style={{ height: '32px' }} />
+              <img src="/logo.jpg" alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'cover', borderRadius: '50%' }} />
             )}
-            <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--primary)', fontFamily: 'Cormorant Garamond', fontWeight: '700' }}>{siteSettings?.siteName || 'Admin Center'}</h2>
+            <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--text-main)', fontFamily: 'Cormorant Garamond', fontWeight: '700' }}>{siteSettings?.siteName || 'Admin Center'}</h2>
           </div>
         </div>
         

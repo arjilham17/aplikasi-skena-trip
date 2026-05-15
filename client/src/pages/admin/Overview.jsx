@@ -332,7 +332,7 @@ const AdminOverview = () => {
                        <Calendar size={120} color="var(--primary)" />
                     </div>
                     <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{isSuperAdmin ? 'Total Pendapatan' : 'Pesanan Sukses'}</h4>
-                    <p style={{ fontSize: '36px', fontWeight: '850', color: 'var(--primary)', margin: 0 }}>
+                    <p style={{ fontSize: '36px', fontWeight: '850', color: 'var(--accent)', margin: 0 }}>
                       {isSuperAdmin ? `Rp ${totalRevenue.toLocaleString()}` : `${filteredBookings.filter(b => b.status === 'confirmed').length} Trip`}
                     </p>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
@@ -341,7 +341,7 @@ const AdminOverview = () => {
                  </div>
                  
                  {isSuperAdmin && (
-                   <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: netProfit >= 0 ? 'var(--primary)' : '#dc2626', color: 'white' }}>
+                   <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: netProfit >= 0 ? 'var(--accent)' : '#dc2626', color: 'white' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <h4 style={{ color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Keuntungan Bersih (Net Profit)</h4>
                         <div className="tooltip-container">
@@ -367,9 +367,9 @@ const AdminOverview = () => {
           {isSuperAdmin && (
             <div className="card" style={{ gridColumn: 'span 2', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: '#fef9c3', padding: '10px', borderRadius: '10px' }}><FileText size={24} color="#eab308" /></div>
+                  <div style={{ background: 'var(--bg-light)', padding: '10px', borderRadius: '10px' }}><FileText size={24} color="var(--accent)" /></div>
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: '600' }}>Antrean Verifikasi</div>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>Antrean Verifikasi</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{filteredBookings.filter(b => b.status === 'pending').length} pesanan butuh persetujuan</div>
                   </div>
                </div>
@@ -403,7 +403,7 @@ const AdminOverview = () => {
               <tbody>
                 {filteredBookings.map(b => (
                   <tr key={b.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '16px 0', fontWeight: '700', fontSize: '13px' }}>#BK-{b.id.toString().padStart(4, '0')}</td>
+                    <td style={{ padding: '16px 0', fontWeight: '700', fontSize: '13px', color: 'var(--text-main)' }}>#BK-{b.id.toString().padStart(4, '0')}</td>
                     <td>
                       <div style={{ fontWeight: '600' }}>{b.user.name}</div>
                       <div style={{fontSize:'12px', color:'var(--text-muted)'}}>{b.user.email}</div>
@@ -484,15 +484,15 @@ const AdminOverview = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              style={{ position: 'relative', maxWidth: '800px', width: '100%', background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+              style={{ position: 'relative', maxWidth: '800px', width: '100%', background: 'var(--bg-white)', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--shadow-xl)', border: '1px solid var(--border)' }}
             >
-              <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <h4 style={{ margin: 0 }}>Bukti Pembayaran</h4>
-                 <button onClick={() => setSelectedProofUrl(null)} style={{ background: '#f1f5f9', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                   <X size={20} color="#64748b"/>
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h4 style={{ margin: 0, color: 'var(--text-main)' }}>Bukti Pembayaran</h4>
+                 <button onClick={() => setSelectedProofUrl(null)} style={{ background: 'var(--bg-light)', borderRadius: '50%', padding: '8px', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                   <X size={20} color="var(--text-main)"/>
                  </button>
               </div>
-              <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc' }}>
+              <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-light)' }}>
                  <img src={selectedProofUrl} alt="Bukti Pembayaran" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
               </div>
             </motion.div>

@@ -16,7 +16,9 @@ const TripManagement = () => {
   const [loadingFinance, setLoadingFinance] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [formData, setFormData] = useState({ title: '', destination: '', description: '', price: '', quota: '', date: '', duration: '', imagePosition: '50% 50%' });
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [thumbnailIndex, setThumbnailIndex] = useState(0);
+  const [selectedExistingImage, setSelectedExistingImage] = useState(null);
   const [dragState, setDragState] = useState({ isDragging: false, startX: 0, startY: 0, initPosX: 50, initPosY: 50 });
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, tripId: null });
 
@@ -64,9 +66,9 @@ const TripManagement = () => {
     setDragState({ ...dragState, isDragging: false });
   };
 
-  const previewUrl = imageFile 
-    ? URL.createObjectURL(imageFile) 
-    : (editingTrip?.image ? getImageUrl(editingTrip.image) : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`);
+  const previewUrl = imageFiles.length > 0 
+    ? URL.createObjectURL(imageFiles[thumbnailIndex] || imageFiles[0]) 
+    : (selectedExistingImage ? getImageUrl(selectedExistingImage) : (editingTrip?.image ? getImageUrl(editingTrip.image) : `https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800`));
 
   useEffect(() => {
     fetchTrips();
@@ -87,7 +89,9 @@ const TripManagement = () => {
       setEditingTrip(null);
       setFormData({ title: '', destination: '', description: '', price: '', quota: '', date: '', duration: '', imagePosition: '50% 50%' });
     }
-    setImageFile(null);
+    setImageFiles([]);
+    setThumbnailIndex(0);
+    setSelectedExistingImage(trip?.image || null);
     setShowModal(true);
   };
 
@@ -95,7 +99,12 @@ const TripManagement = () => {
     e.preventDefault();
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
-    if (imageFile) data.append('imageFile', imageFile);
+    if (imageFiles && imageFiles.length > 0) {
+      imageFiles.forEach(file => data.append('imageFiles', file));
+      data.append('thumbnailIndex', thumbnailIndex);
+    } else if (selectedExistingImage) {
+      data.append('selectedThumbnail', selectedExistingImage);
+    }
 
     try {
       if (editingTrip) {
@@ -257,8 +266,8 @@ const TripManagement = () => {
                 <td>{trip.quota} Pax</td>
                 <td>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleOpenItinerary(trip)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)' }} title="Atur Itinerary"><Clock size={16}/></button>
-                    <button onClick={() => handleDuplicate(trip.id)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)' }} title="Duplikasi Trip"><Copy size={16}/></button>
+                    <button onClick={() => handleOpenItinerary(trip)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }} title="Atur Itinerary"><Clock size={16}/></button>
+                    <button onClick={() => handleDuplicate(trip.id)} className="btn" style={{ padding: '6px', minWidth: 'auto', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }} title="Duplikasi Trip"><Copy size={16}/></button>
                     {isSuperAdmin && (
                       <button onClick={() => handleShowFinance(trip.id)} className="btn btn-primary" style={{ padding: '6px', minWidth: 'auto', background: '#059669' }} title="Laporan Keuangan"><DollarSign size={16}/></button>
                     )}
@@ -278,7 +287,7 @@ const TripManagement = () => {
       {showModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div className="card" style={{ width: '100%', maxWidth: '600px', padding: '32px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={24} color="var(--text-muted)"/></button>
+            <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={24}/></button>
             <h3 style={{ marginBottom: '24px' }}>{editingTrip ? 'Edit Trip' : 'Tambah Trip Baru'}</h3>
             
             <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '16px' }}>
@@ -319,13 +328,71 @@ const TripManagement = () => {
                   <input type="date" className="input" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Gambar Cover (Opsional)</label>
-                  <input type="file" className="input" style={{ padding: '8px' }} onChange={e => setImageFile(e.target.files[0])} />
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Gambar Trip (Maks 6, Opsional)</label>
+                  <input type="file" multiple accept="image/*" className="input" style={{ padding: '8px' }} onChange={e => {
+                    if (e.target.files.length > 6) {
+                      alert('Maksimal 6 gambar yang diperbolehkan.');
+                      e.target.value = null;
+                      return;
+                    }
+                    setImageFiles(Array.from(e.target.files));
+                  }} />
                   <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
                     <strong>💡 Tips Gambar Trip:</strong> Rasio 4:3 atau 1:1. Resolusi ideal 800 x 600 px.
                   </div>
                 </div>
               </div>
+
+              {/* Thumbnail Selection Grid */}
+              {(imageFiles.length > 0 || (editingTrip && editingTrip.images && editingTrip.images.length > 0)) && (
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Pilih Thumbnail Utama</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
+                    {imageFiles.length > 0 ? (
+                      imageFiles.map((file, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => setThumbnailIndex(i)}
+                          style={{ 
+                            aspectRatio: '1', 
+                            borderRadius: '8px', 
+                            overflow: 'hidden', 
+                            cursor: 'pointer', 
+                            border: thumbnailIndex === i ? '3px solid var(--accent)' : '2px solid transparent',
+                            position: 'relative'
+                          }}
+                        >
+                          <img src={URL.createObjectURL(file)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {thumbnailIndex === i && (
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>✓</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      editingTrip.images.map((img, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => setSelectedExistingImage(img)}
+                          style={{ 
+                            aspectRatio: '1', 
+                            borderRadius: '8px', 
+                            overflow: 'hidden', 
+                            cursor: 'pointer',
+                            border: (selectedExistingImage || editingTrip.image) === img ? '3px solid var(--accent)' : '2px solid var(--border)',
+                            opacity: (selectedExistingImage || editingTrip.image) === img ? 1 : 0.6,
+                            position: 'relative'
+                          }}
+                        >
+                          <img src={getImageUrl(img)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {(selectedExistingImage || editingTrip.image) === img && (
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>✓</div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>Atur Posisi Gambar (Geser kursor pada gambar)</label>
@@ -366,7 +433,7 @@ const TripManagement = () => {
               <div style={{ display: 'grid', gap: '20px' }}>
                 <div style={{ padding: '16px', background: 'var(--bg-light)', borderRadius: '12px' }}>
                   <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>Pendapatan (Confirmed)</div>
-                  <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--primary)' }}>Rp {financeData.totalRevenue.toLocaleString()}</div>
+                  <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--accent)' }}>Rp {financeData.totalRevenue.toLocaleString()}</div>
                   <div style={{ fontSize: '12px', marginTop: '4px' }}>Dihitung dari {financeData.bookingCount} pesanan</div>
                 </div>
 
@@ -376,7 +443,7 @@ const TripManagement = () => {
                   <div style={{ fontSize: '12px', marginTop: '4px' }}>{financeData.expenseCount} item pengeluaran lapangan</div>
                 </div>
 
-                <div style={{ padding: '20px', background: 'var(--primary)', color: 'white', borderRadius: '12px', textAlign: 'center' }}>
+                <div style={{ padding: '20px', background: 'var(--accent)', color: 'white', borderRadius: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>Keuntungan Bersih (Net Profit)</div>
                   <div style={{ fontSize: '28px', fontWeight: '800' }}>Rp {financeData.netProfit.toLocaleString()}</div>
                 </div>
@@ -434,7 +501,7 @@ const TripManagement = () => {
                        {items.map(item => (
                          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px', background: 'white', border: '1px solid var(--border)', borderRadius: '8px' }}>
                             <div style={{ display: 'flex', gap: '16px' }}>
-                               <div style={{ fontWeight: 'bold', color: 'var(--primary)', minWidth: '60px' }}>{item.time}</div>
+                               <div style={{ fontWeight: 'bold', color: 'var(--accent)', minWidth: '60px' }}>{item.time}</div>
                                <div>
                                   <div style={{ fontWeight: '600' }}>{item.activity}</div>
                                   {item.description && <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{item.description}</div>}

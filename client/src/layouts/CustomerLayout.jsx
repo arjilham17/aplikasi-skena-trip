@@ -74,12 +74,12 @@ const CustomerLayout = () => {
         }}>
           <Link to="/" onClick={() => setIsMenuOpen(false)} style={{ display: 'flex', alignItems: 'center' }}>
             {siteSettings?.logoUrl ? (
-              <img src={getImageUrl(siteSettings.logoUrl)} alt={siteSettings.siteName} style={{ height: '48px', objectFit: 'contain' }} />
+              <img src={getImageUrl(siteSettings.logoUrl)} alt={siteSettings.siteName} style={{ height: '48px', width: '48px', objectFit: 'cover', borderRadius: '50%' }} />
             ) : (
-              <img src="/logo.jpg" alt="Skena Trip Logo" style={{ height: '48px', objectFit: 'contain' }} />
+              <img src="/logo.jpg" alt="Skena Trip Logo" style={{ height: '48px', width: '48px', objectFit: 'cover', borderRadius: '50%' }} />
             )}
             {(!siteSettings?.logoUrl || windowWidth > 480) && (
-              <span style={{ marginLeft: '12px', fontWeight: '800', fontSize: '20px', color: 'var(--primary)', fontFamily: 'Cormorant Garamond' }}>
+              <span style={{ marginLeft: '12px', fontWeight: '800', fontSize: '20px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond' }}>
                 {siteSettings?.siteName || 'Skena Trip'}
               </span>
             )}

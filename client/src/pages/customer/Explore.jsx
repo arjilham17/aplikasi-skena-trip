@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users, Image as ImageIcon } from 'lucide-react';
 import Lottie from 'lottie-react';
@@ -7,8 +7,10 @@ import { motion } from 'framer-motion';
 import { getImageUrl } from '../../utils/getImageUrl';
 
 import emptyAnim from '../../assets/empty-trip.json';
+import { ShowcaseCard } from '../../components/ui/ShowcaseCard';
 
 const Explore = () => {
+  const navigate = useNavigate();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,17 +39,16 @@ const Explore = () => {
   return (
     <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', minHeight: '80vh' }}>
       <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ marginBottom: '24px' }}>Katalog Trip</h1>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }} className="grid-responsive">
+        <h1 style={{ marginBottom: '24px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500 }}>Katalog Trip</h1>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', background: 'var(--bg-white)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }} className="grid-responsive">
           {/* Search Bar */}
           <div style={{ position: 'relative' }}>
-            <Search size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={20} color="var(--primary)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.7 }} />
             <input 
               type="text" 
               placeholder="Cari nama atau destinasi..." 
               className="input" 
-              style={{ paddingLeft: '48px', width: '100%', borderRadius: '12px' }}
+              style={{ paddingLeft: '48px', width: '100%', borderRadius: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -55,10 +56,10 @@ const Explore = () => {
 
           {/* Sorting */}
           <div style={{ position: 'relative' }}>
-            <SortAsc size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <SortAsc size={18} color="var(--primary)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.7 }} />
             <select 
               className="input" 
-              style={{ paddingLeft: '40px', borderRadius: '12px' }}
+              style={{ paddingLeft: '40px', borderRadius: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)', width: '100%' }}
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
@@ -126,70 +127,17 @@ const Explore = () => {
                 hidden: { opacity: 0, y: 20 },
                 show: { opacity: 1, y: 0 }
               }}
-              whileHover={{ y: -10 }}
-              className="card" 
-              style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', transition: 'all 0.3s ease' }}
             >
-              <div style={{ height: '220px', background: 'var(--bg-light)', overflow: 'hidden', position: 'relative' }}>
-                {trip.image ? (
-                  <img 
-                    src={getImageUrl(trip.image)} 
-                    alt={trip.title} 
-
-                    loading="lazy"
-                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
-                  />
-                ) : null}
-                <div 
-                  style={{ 
-                    display: trip.image ? 'none' : 'flex', 
-                    width: '100%', 
-                    height: '100%', 
-                    background: 'var(--bg-light)', 
-                    flexDirection: 'column',
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    gap: '12px',
-                    color: 'var(--text-muted)'
-                  }}
-                >
-                  <ImageIcon size={48} strokeWidth={1} />
-                  <span style={{ fontSize: '12px', fontWeight: '500' }}>Foto belum tersedia</span>
-                </div>
-                
-                {/* Labels */}
-                <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '8px' }}>
-                   <div style={{ background: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', backdropFilter: 'blur(4px)' }}>
-                      {trip.duration}
-                   </div>
-                </div>
-
-                {trip.currentPax >= trip.quota && (
-                  <div style={{ position: 'absolute', top: '12px', right: '12px', background: '#dc2626', color: 'white', padding: '4px 12px', borderRadius: '100px', fontSize: '11px', fontWeight: 'bold' }}>
-                    PENUH
-                  </div>
-                )}
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', marginBottom: '8px', fontSize: '13px' }}>
-                  <MapPin size={14}/> {trip.destination}
-                </div>
-                <h3 style={{ marginBottom: '16px', flex: 1, fontSize: '18px', lineHeight: '1.4' }}>{trip.title}</h3>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={14}/> {new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}</div>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={14}/> {trip.currentPax}/{trip.quota} Pax</div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mulai dari</span>
-                    <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '18px' }}>Rp {trip.price.toLocaleString()}</span>
-                  </div>
-                  <Link to={`/trip/${trip.id}`} className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}>Detail</Link>
-                </div>
-              </div>
+              <ShowcaseCard
+                tagline={`${trip.duration} | ${trip.currentPax}/${trip.quota} Pax`}
+                heading={trip.title}
+                description={trip.destination}
+                imageUrl={trip.image ? getImageUrl(trip.image) : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"}
+                ctaText={`Detail Rp ${trip.price.toLocaleString()}`}
+                onCtaClick={() => navigate(`/trip/${trip.id}`)}
+                brandName={new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}
+                services={trip.currentPax >= trip.quota ? ["PENUH"] : ["TERSEDIA"]}
+              />
             </motion.div>
           ))}
         </motion.div>

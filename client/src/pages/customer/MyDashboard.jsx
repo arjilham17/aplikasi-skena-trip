@@ -123,7 +123,7 @@ const MyDashboard = () => {
 
   return (
     <div className="container" style={{ paddingTop: '100px', minHeight: '80vh' }}>
-      <h1>Dashboard Saya</h1>
+      <h1 style={{ color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500, marginBottom: '8px' }}>Dashboard Saya</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Kelola tiket dan perjalanan Anda di sini.</p>
 
       {isLoadingBookings ? (
@@ -157,13 +157,13 @@ const MyDashboard = () => {
             return (
             <div key={b.id} className="card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ marginBottom: '8px' }}>{b.trip.title}</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+                <h3 style={{ marginBottom: '8px', color: 'var(--text-main)' }}>{b.trip.title}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                   {b.pax} Pax &bull; Rp {b.totalPrice.toLocaleString()}
                 </p>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                  <span className={`badge ${b.status}`}>Status Booking: {b.status.toUpperCase()}</span>
-                  {hasPayment && b.status !== 'confirmed' && <span className="badge pending">Menunggu Verifikasi Pembayaran</span>}
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className={`badge ${b.status}`} style={{ opacity: 0.9 }}>Status: {b.status.toUpperCase()}</span>
+                  {hasPayment && b.status !== 'confirmed' && <span className="badge pending" style={{ opacity: 0.9 }}>Menunggu Verifikasi</span>}
                 </div>
               </div>
                 <div>
@@ -187,7 +187,7 @@ const MyDashboard = () => {
                     {b.status === 'confirmed' && (
                       <button 
                         className="btn" 
-                        style={{ padding: '8px 16px', background: 'var(--bg-light)', border: '1px solid var(--border)' }} 
+                        style={{ padding: '8px 16px', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }} 
                         onClick={() => { setReviewTripId(b.tripId); setShowReviewModal(true); }}
                       >
                         Beri Ulasan
@@ -219,14 +219,14 @@ const MyDashboard = () => {
               <button onClick={() => setSelectedBooking(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <X size={20} color="var(--text-muted)"/>
               </button>
-              <h3 style={{ marginBottom: '16px' }}>Upload Bukti Pembayaran</h3>
+              <h3 style={{ marginBottom: '16px', color: 'var(--text-main)' }}>Upload Bukti Pembayaran</h3>
               <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px' }}>
                 Total Tagihan: <strong>Rp {selectedBooking.totalPrice.toLocaleString()}</strong>
               </p>
               
               <form onSubmit={handleUploadPayment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>Pilih Metode Pembayaran</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>Pilih Metode Pembayaran</label>
                   <select 
                     className="input" 
                     value={selectedMethodId} 
@@ -258,7 +258,7 @@ const MyDashboard = () => {
                 </div>
                 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>File Bukti (Image/PDF)</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>File Bukti (Image/PDF)</label>
                   <input 
                     type="file" 
                     accept="image/*,.pdf" 
@@ -372,11 +372,11 @@ const MyDashboard = () => {
               <button onClick={() => setShowReviewModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <X size={20} color="var(--text-muted)"/>
               </button>
-              <h3 style={{ marginBottom: '24px' }}>Tulis Ulasan Perjalanan</h3>
+              <h3 style={{ marginBottom: '24px', color: 'var(--text-main)' }}>Tulis Ulasan Perjalanan</h3>
               
               <form onSubmit={handleReviewSubmit} style={{ display: 'grid', gap: '20px' }}>
                  <div style={{ textAlign: 'center' }}>
-                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Rating Anda</label>
+                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: 'var(--text-main)' }}>Rating Anda</label>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star 
@@ -392,7 +392,7 @@ const MyDashboard = () => {
                  </div>
 
                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Komentar</label>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--text-main)' }}>Komentar</label>
                     <textarea 
                       className="input" 
                       rows="4" 

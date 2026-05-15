@@ -112,7 +112,7 @@ const Home = () => {
 
       {/* Testimonials Section */}
       {(loading || featuredReviews.length > 0) && (
-        <section style={{ padding: '100px 20px', background: 'var(--bg-white)' }}>
+        <section style={{ padding: '100px 20px', background: 'var(--bg-light)' }}>
           <div className="container">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
@@ -121,8 +121,8 @@ const Home = () => {
               transition={{ duration: 0.8 }}
               style={{ textAlign: 'center', marginBottom: '64px' }}
             >
-              <span style={{ color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '14px' }}>Testimoni</span>
-              <h2 style={{ fontSize: '42px', marginTop: '12px' }}>Apa Kata Mereka?</h2>
+              <span style={{ color: 'var(--accent)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '14px' }}>Testimoni</span>
+              <h2 style={{ fontSize: '42px', marginTop: '12px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif' }}>Apa Kata Mereka?</h2>
             </motion.div>
 
             <motion.div 
@@ -166,7 +166,7 @@ const Home = () => {
                     className="card" 
                     style={{ padding: '32px', position: 'relative', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.3s ease' }}
                   >
-                    <Quote size={40} color="var(--primary)" style={{ opacity: 0.1, position: 'absolute', top: '24px', right: '24px' }} />
+                    <Quote size={40} color="var(--text-main)" style={{ opacity: 0.1, position: 'absolute', top: '24px', right: '24px' }} />
                     
                     <div style={{ display: 'flex', gap: '2px', marginBottom: '20px' }}>
                       {[...Array(5)].map((_, i) => (
