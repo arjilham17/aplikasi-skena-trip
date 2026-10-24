@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 import {
   ClipboardList, Search, Users, Phone, ChevronDown,
@@ -47,12 +47,14 @@ const PassengerManifest = () => {
   // ── Load manifest whenever trip selection changes ─────────────────────────
   useEffect(() => {
     if (!selectedTripId) {
-      setTripInfo(null);
-      setPassengers([]);
-      setTotalPax(0);
+      setTimeout(() => {
+        setTripInfo(null);
+        setPassengers([]);
+        setTotalPax(0);
+      }, 0);
       return;
     }
-    setLoading(true);
+    const loadingTimer = setTimeout(() => setLoading(true), 0);
     api.get(`/manifest?tripId=${selectedTripId}`)
       .then(res => {
         setTripInfo(res.data.trip);
@@ -61,6 +63,7 @@ const PassengerManifest = () => {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+    return () => clearTimeout(loadingTimer);
   }, [selectedTripId]);
 
   // ── Filtered passengers ───────────────────────────────────────────────────
@@ -353,7 +356,7 @@ const PassengerManifest = () => {
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((p, idx) => {
+                    filtered.map(p => {
                       const waNum = fmtWA(p.whatsapp);
                       return (
                         <tr

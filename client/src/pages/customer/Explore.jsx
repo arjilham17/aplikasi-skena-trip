@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Search, ChevronDown, SortAsc, Calendar, Users, Image as ImageIcon } from 'lucide-react';
-import Lottie from 'lottie-react';
+import { Search, SortAsc } from 'lucide-react';
+import lottieModule from 'lottie-react';
 import { motion } from 'framer-motion';
+
+const Lottie = lottieModule.default || lottieModule;
 import { getImageUrl } from '../../utils/getImageUrl';
 
 import emptyAnim from '../../assets/empty-trip.json';
@@ -17,7 +19,6 @@ const Explore = () => {
   const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
 
   useEffect(() => {
-    setLoading(true);
     api.get('/trips')
       .then(res => setTrips(res.data))
       .catch(console.error)

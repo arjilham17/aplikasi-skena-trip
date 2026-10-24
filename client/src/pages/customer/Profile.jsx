@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { User } from 'lucide-react';
 import { getImageUrl } from '../../utils/getImageUrl';
@@ -10,11 +10,7 @@ const Profile = () => {
   const [passwords, setPasswords] = useState({ oldPassword: '', newPassword: '' });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  async function fetchProfile() {
     try {
       const res = await api.get('/users/profile');
       setProfile({
@@ -27,7 +23,12 @@ const Profile = () => {
     } catch (err) {
       console.error('Failed to fetch profile', err);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(fetchProfile, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();

@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Plane, Receipt, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, Menu, X, Sun, Moon, History, Wallet, AlertTriangle, Check } from 'lucide-react';
+import { LayoutDashboard, Plane, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, X, Sun, Moon, History, Wallet, AlertTriangle, Check } from 'lucide-react';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
@@ -32,6 +31,7 @@ const AdminLayout = () => {
 
   const userStr = localStorage.getItem('user');
   const initialUser = userStr ? JSON.parse(userStr) : null;
+  const hasInitialUser = Boolean(userStr);
   const [profileData, setProfileData] = useState(initialUser);
   const [pendingCount, setPendingCount] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
@@ -65,26 +65,29 @@ const AdminLayout = () => {
   };
 
   useEffect(() => {
+    let initialTimer;
     const loadProfile = () => {
        const storedUser = localStorage.getItem('user');
        if (storedUser) setProfileData(JSON.parse(storedUser));
        else setProfileData(null);
     };
 
-    if (initialUser) {
+    if (hasInitialUser) {
       api.get('/users/profile').then(res => {
          setProfileData(res.data);
          localStorage.setItem('user', JSON.stringify(res.data));
       }).catch(console.error);
       
       // Initial fetch
-      fetchPendingCount();
-      fetchAlertsData();
+      initialTimer = setTimeout(() => {
+        fetchPendingCount();
+        fetchAlertsData();
+      }, 0);
       api.get('/settings').then(res => setSiteSettings(res.data)).catch(console.error);
     }
 
     const interval = setInterval(() => {
-      if (initialUser) {
+      if (hasInitialUser) {
         fetchPendingCount();
         fetchAlertsData();
       }
@@ -93,9 +96,10 @@ const AdminLayout = () => {
     window.addEventListener('userProfileUpdated', loadProfile);
     return () => {
       window.removeEventListener('userProfileUpdated', loadProfile);
+      clearTimeout(initialTimer);
       clearInterval(interval);
     };
-  }, []);
+  }, [hasInitialUser]);
 
   if (!initialUser || !['admin', 'superadmin', 'super_admin'].includes(initialUser.role)) {
     return <Navigate to="/" replace />;
@@ -175,9 +179,7 @@ const AdminLayout = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{ height: '70px', background: 'var(--bg-white)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 32px', gap: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {windowWidth <= 768 && (
-              <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><Menu size={24} /></button>
-            )}
+
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
             <button onClick={toggleTheme} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>

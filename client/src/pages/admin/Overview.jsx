@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { X, Filter, Download, FileText, Calendar, Table, MessageCircle, HelpCircle, Search, Trash2 } from 'lucide-react';
@@ -24,7 +24,7 @@ const AdminOverview = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const [resBookings, resExpenses] = await Promise.all([
         api.get('/bookings'),
@@ -32,8 +32,8 @@ const AdminOverview = () => {
       ]);
       setBookings(resBookings.data);
       setExpenses(resExpenses.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error('Gagal memuat data');
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ const AdminOverview = () => {
     try {
       await api.put(`/bookings/${id}/status`, { status });
       fetchData(); // Refresh table data after updating
-    } catch (err) {
+    } catch {
       alert('Gagal mengubah status');
     }
   };

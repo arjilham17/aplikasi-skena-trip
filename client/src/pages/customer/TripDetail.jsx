@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Star, Calendar, MessageSquare, Image as ImageIcon, Clock, X } from 'lucide-react';
+import { MapPin, Star, MessageSquare, Image as ImageIcon, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getImageUrl } from '../../utils/getImageUrl';
 import { LayeredStack } from '../../components/ui/LayeredStack';
@@ -18,10 +18,8 @@ const TripDetail = () => {
   const [promoError, setPromoError] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
-    setIsLoading(true);
     api.get(`/trips/${id}`)
       .then(res => setTrip(res.data))
       .catch(console.error)
@@ -37,16 +35,6 @@ const TripDetail = () => {
 
   const [bookingMsg, setBookingMsg] = useState({ text: '', type: '' });
 
-  const handleBooking = () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setBookingMsg({ text: 'Silakan login terlebih dahulu untuk memesan.', type: 'error' });
-      setTimeout(() => navigate('/login'), 2000);
-      return;
-    }
-    setShowPaymentModal(true);
-  };
-
   const confirmBooking = async () => {
     setLoading(true);
     setBookingMsg({ text: '', type: '' });
@@ -57,7 +45,6 @@ const TripDetail = () => {
         promoCode: appliedPromo ? appliedPromo.code : null,
         paymentMethodId: selectedMethod?.id 
       });
-      setShowPaymentModal(false);
       setBookingMsg({ text: 'Pemesanan berhasil! Mengarahkan ke Dashboard...', type: 'success' });
       setTimeout(() => navigate('/my-dashboard'), 2000);
     } catch (error) {
@@ -67,7 +54,6 @@ const TripDetail = () => {
         type: 'error',
         incomplete: isIncomplete
       });
-      setShowPaymentModal(false);
     } finally {
       setLoading(false);
     }

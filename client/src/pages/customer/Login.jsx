@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
-import Lottie from 'lottie-react';
+import lottieModule from 'lottie-react';
+
+const Lottie = lottieModule.default || lottieModule;
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);

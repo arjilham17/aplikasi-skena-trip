@@ -9,7 +9,7 @@ export const getImageUrl = (path) => {
       try {
           const urlObj = new URL(apiUrl);
           baseUrl = urlObj.origin;
-      } catch (e) {
+      } catch {
           baseUrl = '';
       }
   }

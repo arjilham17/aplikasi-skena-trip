@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Compass, User, LogOut, Sun, Moon, Menu, X } from 'lucide-react';
 import api from '../services/api';
@@ -9,6 +9,7 @@ const CustomerLayout = () => {
   const navigate = useNavigate();
   const userStr = localStorage.getItem('user');
   const initialUser = userStr ? JSON.parse(userStr) : null;
+  const hasInitialUser = Boolean(userStr);
   
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [profileData, setProfileData] = useState(initialUser);
@@ -30,7 +31,7 @@ const CustomerLayout = () => {
        else setProfileData(null);
     };
 
-    if (initialUser) {
+    if (hasInitialUser) {
       api.get('/users/profile').then(res => {
          setProfileData(res.data);
          localStorage.setItem('user', JSON.stringify(res.data));
@@ -39,7 +40,7 @@ const CustomerLayout = () => {
 
     window.addEventListener('userProfileUpdated', loadProfile);
     return () => window.removeEventListener('userProfileUpdated', loadProfile);
-  }, []);
+  }, [hasInitialUser]);
 
   useEffect(() => {
     if (theme === 'dark') {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Edit, Trash, Plus, X, DollarSign, Clock, Copy, FileUp, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -74,7 +74,7 @@ const TripManagement = () => {
     fetchTrips();
   }, []);
 
-  const fetchTrips = () => {
+  function fetchTrips() {
     api.get('/trips').then(res => setTrips(res.data)).catch(console.error);
   };
 
@@ -116,7 +116,7 @@ const TripManagement = () => {
       }
       setShowModal(false);
       fetchTrips();
-    } catch (err) {
+    } catch {
       alert('Terjadi kesalahan saat menyimpan data');
     }
   };
@@ -127,7 +127,7 @@ const TripManagement = () => {
       await api.post(`/trips/${id}/duplicate`);
       alert('Trip berhasil diduplikasi!');
       fetchTrips();
-    } catch (err) {
+    } catch {
       alert('Gagal menduplikasi trip');
     }
   };
@@ -137,7 +137,7 @@ const TripManagement = () => {
       const res = await api.get(`/trips/${trip.id}`);
       setSelectedTripForItinerary(res.data);
       setShowItineraryModal(true);
-    } catch (err) { alert('Gagal memuat itinerary'); }
+    } catch { alert('Gagal memuat itinerary'); }
   };
 
   const handleAddItinerary = async (e) => {
@@ -146,14 +146,14 @@ const TripManagement = () => {
       await api.post(`/trips/${selectedTripForItinerary.id}/itinerary`, itineraryForm);
       setItineraryForm({ day: itineraryForm.day, time: '', activity: '', description: '' });
       handleOpenItinerary(selectedTripForItinerary); // Refresh
-    } catch (err) { alert('Gagal menambah itinerary'); }
+    } catch { alert('Gagal menambah itinerary'); }
   };
 
   const handleDeleteItinerary = async (id) => {
     try {
       await api.delete(`/itinerary/${id}`);
       handleOpenItinerary(selectedTripForItinerary); // Refresh
-    } catch (err) { alert('Gagal menghapus itinerary'); }
+    } catch { alert('Gagal menghapus itinerary'); }
   };
 
   const downloadTemplate = () => {
@@ -199,7 +199,7 @@ const TripManagement = () => {
           alert('Berhasil mengimpor itinerary!');
           handleOpenItinerary(selectedTripForItinerary);
         }
-      } catch (err) {
+      } catch {
         alert('Gagal membaca file Excel. Pastikan format benar.');
       }
     };
@@ -216,7 +216,7 @@ const TripManagement = () => {
       await api.delete(`/trips/${confirmModal.tripId}`);
       fetchTrips();
       setConfirmModal({ isOpen: false, tripId: null });
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus trip. Pastikan tidak ada booking yang terikat dengan trip ini.');
       setConfirmModal({ isOpen: false, tripId: null });
     }
@@ -228,7 +228,7 @@ const TripManagement = () => {
     try {
       const res = await api.get(`/admin/trips/${tripId}/finance`);
       setFinanceData(res.data);
-    } catch (err) {
+    } catch {
       alert('Gagal memuat data keuangan');
       setShowFinanceModal(false);
     } finally {

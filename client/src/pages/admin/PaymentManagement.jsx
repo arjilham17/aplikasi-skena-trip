@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Plus, X, Trash, CreditCard, QrCode, ToggleLeft, ToggleRight, Info } from 'lucide-react';
+import { Plus, X, Trash, CreditCard, QrCode, ToggleLeft, ToggleRight } from 'lucide-react';
 import { getImageUrl } from '../../utils/getImageUrl';
 
 const PaymentManagement = () => {
@@ -15,7 +15,7 @@ const PaymentManagement = () => {
     fetchMethods();
   }, []);
 
-  const fetchMethods = async () => {
+  async function fetchMethods() {
     try {
       const res = await api.get('/admin/payment-methods');
       setMethods(res.data);
@@ -55,7 +55,7 @@ const PaymentManagement = () => {
       }
       setShowModal(false);
       fetchMethods();
-    } catch (err) {
+    } catch {
       alert('Gagal menyimpan metode pembayaran');
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ const PaymentManagement = () => {
     try {
       await api.put(`/admin/payment-methods/${method.id}`, { isActive: !method.isActive });
       fetchMethods();
-    } catch (err) { alert('Gagal mengubah status'); }
+    } catch { alert('Gagal mengubah status'); }
   };
 
   const handleDelete = async (id) => {
@@ -74,7 +74,7 @@ const PaymentManagement = () => {
     try {
       await api.delete(`/admin/payment-methods/${id}`);
       fetchMethods();
-    } catch (err) { alert('Gagal menghapus'); }
+    } catch { alert('Gagal menghapus'); }
   };
 
   return (

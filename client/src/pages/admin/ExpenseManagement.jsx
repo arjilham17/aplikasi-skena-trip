@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Wallet, Plus, Trash, Search, Filter, TrendingDown, Receipt, Edit } from 'lucide-react';
+import { Wallet, Plus, Trash, Edit } from 'lucide-react';
 
 const ExpenseManagement = () => {
   const [expenses, setExpenses] = useState([]);
@@ -26,7 +26,7 @@ const ExpenseManagement = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const [expRes, tripRes] = await Promise.all([
         api.get('/expenses'),
@@ -34,8 +34,8 @@ const ExpenseManagement = () => {
       ]);
       setExpenses(expRes.data);
       setTrips(tripRes.data);
-    } catch (err) {
-      console.error('Gagal memuat data', err);
+    } catch {
+      console.error('Gagal memuat data');
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ const ExpenseManagement = () => {
     try {
       await api.delete(`/expenses/${id}`);
       fetchData();
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus pengeluaran');
     }
   };

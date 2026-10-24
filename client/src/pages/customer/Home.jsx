@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,7 +12,6 @@ const Home = () => {
   const [featuredReviews, setFeaturedReviews] = useState([]);
 
   useEffect(() => {
-    setLoading(true);
     Promise.all([
       api.get('/settings').then(res => setSettings(res.data)),
       api.get('/reviews/featured').then(res => {
