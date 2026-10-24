@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { History, User, Clock, Search, Filter } from 'lucide-react';
+import { History, User, Clock, Search } from 'lucide-react';
 
 const ActivityLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
+  async function fetchLogs() {
     try {
       const res = await api.get('/admin/logs');
       setLogs(res.data);
@@ -20,7 +16,12 @@ const ActivityLogs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(fetchLogs, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const getActionColor = (action) => {
     if (action.includes('CREATE')) return '#059669'; // Green

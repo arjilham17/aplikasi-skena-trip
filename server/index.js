@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
@@ -36,7 +37,11 @@ app.use(helmet({
   contentSecurityPolicy: false, 
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : ['http://localhost:5173'];
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...(process.env.CLIENT_URL || '').split(',').map(origin => origin.trim()).filter(Boolean)
+].filter((origin, index, origins) => origins.indexOf(origin) === index);
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {

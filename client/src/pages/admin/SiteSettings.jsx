@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Settings, Save, Upload, Globe, Phone, Mail, MapPin, TrendingUp, Image, Plus, Trash, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -18,9 +18,7 @@ const SiteSettings = () => {
     heroImages: []
   });
   const [logoFile, setLogoFile] = useState(null);
-  const [heroImageFile, setHeroImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [heroPreviewUrl, setHeroPreviewUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -30,7 +28,7 @@ const SiteSettings = () => {
     fetchSettings();
   }, []);
 
-  const fetchSettings = async () => {
+  async function fetchSettings() {
     try {
       const res = await api.get('/settings');
       setSettings(res.data);
@@ -75,7 +73,7 @@ const SiteSettings = () => {
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    } catch (err) {
+    } catch {
       setSuccessMsg('Gagal menyimpan pengaturan');
     } finally {
       setSaving(false);
@@ -87,7 +85,7 @@ const SiteSettings = () => {
       await api.delete(`/settings/hero-images/${confirmModal.imgId}`);
       fetchSettings();
       setConfirmModal({ isOpen: false, imgId: null });
-    } catch (err) {
+    } catch {
       alert('Gagal menghapus foto');
       setConfirmModal({ isOpen: false, imgId: null });
     }

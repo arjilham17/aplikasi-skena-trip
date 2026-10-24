@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Plus, Trash, CheckCircle, XCircle } from 'lucide-react';
 
@@ -14,7 +14,7 @@ const PromoManagement = () => {
 
   useEffect(() => { fetchPromos(); }, []);
 
-  const fetchPromos = () => {
+  function fetchPromos() {
     api.get('/promos').then(res => setPromos(res.data)).catch(console.error);
   };
 
@@ -24,14 +24,14 @@ const PromoManagement = () => {
       await api.post('/promos', { code: code.toUpperCase(), discountAmount, discountType });
       setCode(''); setDiscountAmount(''); setDiscountType('flat');
       fetchPromos();
-    } catch (err) { alert('Gagal menambahkan promo. Mungkin kode sudah ada.'); }
+    } catch { alert('Gagal menambahkan promo. Mungkin kode sudah ada.'); }
   };
 
   const toggleActive = async (id, currentStatus) => {
     try {
       await api.put(`/promos/${id}`, { isActive: !currentStatus });
       fetchPromos();
-    } catch (err) { alert('Gagal mengubah status promo'); }
+    } catch { alert('Gagal mengubah status promo'); }
   };
 
   const handleDelete = async (id) => {
@@ -39,7 +39,7 @@ const PromoManagement = () => {
       try {
         await api.delete(`/promos/${id}`);
         fetchPromos();
-      } catch (err) { alert('Gagal menghapus promo'); }
+      } catch { alert('Gagal menghapus promo'); }
     }
   };
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
-import { X, Download, Star, Image as ImageIcon, ShoppingBag } from 'lucide-react';
+import { X, Download, Star, ShoppingBag } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl } from '../../utils/getImageUrl';
@@ -13,43 +13,43 @@ const MyDashboard = () => {
   const [proofFile, setProofFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const ticketRef = React.useRef(null);
+  const ticketRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
   const [siteSettings, setSiteSettings] = useState(null);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  
+
   // Review States
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewTripId, setReviewTripId] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
-  useEffect(() => {
-    fetchBookings();
-    fetchSettings();
-    fetchPaymentMethods();
-  }, []);
-
-  const fetchPaymentMethods = () => {
+  function fetchPaymentMethods() {
     api.get('/payment-methods').then(res => setPaymentMethods(res.data)).catch(console.error);
-  };
+  }
 
-  const fetchBookings = () => {
+  function fetchBookings() {
     setIsLoadingBookings(true);
     api.get('/my-bookings')
        .then(res => setBookings(res.data))
        .catch(err => console.error(err))
        .finally(() => setIsLoadingBookings(false));
-  };
+  }
 
-  const fetchSettings = () => {
-    setIsLoadingSettings(true);
+  function fetchSettings() {
     api.get('/settings')
       .then(res => setSiteSettings(res.data))
-      .catch(console.error)
-      .finally(() => setIsLoadingSettings(false));
-  };
+      .catch(console.error);
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchBookings();
+      fetchSettings();
+      fetchPaymentMethods();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();

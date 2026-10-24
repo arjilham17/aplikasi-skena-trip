@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import {
   Users, Search, Shield, ShieldCheck, ShieldAlert,
-  Trash2, UserCog, ChevronDown, X, AlertTriangle, Key
+  Trash2, UserCog, ChevronDown, AlertTriangle, Key
 } from 'lucide-react';
 import { getImageUrl } from '../../utils/getImageUrl';
 
@@ -85,24 +85,25 @@ const UserManagement = () => {
   const currentUserStr = localStorage.getItem('user');
   const currentUser    = currentUserStr ? JSON.parse(currentUserStr) : null;
 
-  useEffect(() => { fetchUsers(); }, []);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/admin/users');
-      setUsers(res.data);
-    } catch (err) {
-      showToast('Gagal memuat data pengguna.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/admin/users');
+        setUsers(res.data);
+      } catch {
+        showToast('Gagal memuat data pengguna.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUsers();
+  }, []);
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
