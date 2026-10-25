@@ -367,15 +367,21 @@ button { cursor: pointer; border: none; outline: none; font-family: 'Inter', san
   }
   .ticket-print-area, .ticket-print-area * {
     visibility: visible;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .ticket-print-area {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+    left: 50% !important;
+    top: 20px !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: 1px solid #CBD5E1 !important;
     box-shadow: none !important;
+    background: #FFFFFF !important;
   }
   .no-print {
     display: none !important;
