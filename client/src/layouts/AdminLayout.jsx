@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Plane, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, X, Sun, Moon, History, Wallet, AlertTriangle, Check } from 'lucide-react';
+import { LayoutDashboard, Plane, LogOut, Ticket, User, Users, ClipboardList, Bell, Settings, X, Sun, Moon, History, Wallet, AlertTriangle, Check, Menu } from 'lucide-react';
 import api from '../services/api';
 import { getImageUrl } from '../utils/getImageUrl';
 
@@ -8,6 +8,7 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
   useEffect(() => {
@@ -128,11 +129,44 @@ const AdminLayout = () => {
     ] : []),
   ];
 
+  const isMobile = windowWidth <= 1024;
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-light)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-light)', position: 'relative' }}>
+      {/* Mobile Backdrop */}
+      {isMobile && isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            background: 'rgba(0, 0, 0, 0.45)', 
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 998 
+          }} 
+        />
+      )}
+
       {/* Sidebar */}
-      <div style={{ width: '250px', background: 'var(--bg-white)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border)' }}>
+      <aside 
+        style={{ 
+          width: '260px', 
+          background: 'var(--bg-white)', 
+          borderRight: '1px solid var(--border)', 
+          display: 'flex', 
+          flexDirection: 'column',
+          position: isMobile ? 'fixed' : 'relative',
+          top: 0,
+          bottom: 0,
+          left: isMobile ? (isMobileMenuOpen ? 0 : '-280px') : 0,
+          zIndex: isMobile ? 999 : 10,
+          boxShadow: isMobile && isMobileMenuOpen ? '4px 0 24px rgba(0,0,0,0.15)' : 'none',
+          transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          height: isMobile ? '100vh' : 'auto'
+        }}
+      >
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {siteSettings?.logoUrl ? (
               <img src={getImageUrl(siteSettings.logoUrl)} alt="Logo" style={{ height: '32px', width: '32px', objectFit: 'cover', borderRadius: '50%' }} />
@@ -141,13 +175,37 @@ const AdminLayout = () => {
             )}
             <h2 style={{ fontSize: '18px', margin: 0, color: 'var(--text-main)', fontFamily: 'Cormorant Garamond', fontWeight: '700' }}>{siteSettings?.siteName || 'Admin Center'}</h2>
           </div>
+          {isMobile && (
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+              aria-label="Tutup menu"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
         
-        <nav style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <nav style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto' }}>
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
             return (
-              <Link key={item.path} to={item.path} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '8px', background: isActive ? 'var(--primary)' : 'transparent', color: isActive ? 'white' : 'var(--text-muted)', fontWeight: isActive ? '600' : '400', transition: 'all 0.2s' }}>
+              <Link 
+                key={item.path} 
+                to={item.path} 
+                onClick={() => { if (isMobile) setIsMobileMenuOpen(false); }}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  padding: '10px 14px', 
+                  borderRadius: '8px', 
+                  background: isActive ? 'var(--primary)' : 'transparent', 
+                  color: isActive ? 'white' : 'var(--text-muted)', 
+                  fontWeight: isActive ? '600' : '500', 
+                  transition: 'all 0.15s ease' 
+                }}
+              >
                 {item.icon}
                 {item.name}
               </Link>
@@ -155,7 +213,7 @@ const AdminLayout = () => {
           })}
         </nav>
 
-        <div style={{ padding: '24px 16px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '20px 16px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                {profileData?.profilePicUrl ? (
@@ -169,36 +227,54 @@ const AdminLayout = () => {
                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{profileData?.role}</div>
              </div>
           </div>
-          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 16px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
-            <LogOut size={20} /> Logout
+          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 14px', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
+            <LogOut size={18} /> Logout
           </button>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <header style={{ height: '70px', background: 'var(--bg-white)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 0 32px', gap: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <header style={{ height: '70px', background: 'var(--bg-white)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: windowWidth <= 768 ? '0 16px' : '0 32px', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isMobile && (
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-main)', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  padding: '8px',
+                  borderRadius: '6px'
+                }}
+                aria-label="Buka menu admin"
+              >
+                <Menu size={24} />
+              </button>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <button onClick={toggleTheme} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button onClick={toggleTheme} style={{ background: 'transparent', color: 'var(--text-main)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px' }} aria-label="Ganti Tema">
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
             
             {isSuperAdmin && (
               <div style={{ position: 'relative' }}>
-                <button onClick={() => setShowAlerts(!showAlerts)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative' }}>
+                <button onClick={() => setShowAlerts(!showAlerts)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', padding: '6px' }} aria-label="Peringatan Sistem">
                   <AlertTriangle size={22} color={alertCount > 0 ? 'var(--accent)' : 'var(--text-muted)'} />
                   {alertCount > 0 && (
-                    <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--accent)', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>{alertCount}</span>
+                    <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--accent)', color: 'white', fontSize: '10px', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold' }}>{alertCount}</span>
                   )}
                 </button>
                 {showAlerts && (
-                  <div className="card" style={{ position: 'absolute', top: '40px', right: 0, width: '320px', maxHeight: '400px', overflowY: 'auto', zIndex: 100, padding: '16px', boxShadow: 'var(--shadow-lg)' }}>
-                    <h4 style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="card" style={{ position: 'absolute', top: '40px', right: 0, width: '300px', maxHeight: '400px', overflowY: 'auto', zIndex: 100, padding: '16px', boxShadow: 'var(--shadow-lg)' }}>
+                    <h4 style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'inherit' }}>
                       Peringatan Sistem
-                      <button onClick={() => setShowAlerts(false)} style={{ background: 'transparent', border: 'none' }}><X size={16} /></button>
+                      <button onClick={() => setShowAlerts(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={16} /></button>
                     </h4>
                     {alerts.length === 0 ? (
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>Tidak ada peringatan.</p>
@@ -217,15 +293,15 @@ const AdminLayout = () => {
                               padding: '12px', 
                               borderRadius: '8px', 
                               background: alert.isRead ? 'transparent' : 'var(--bg-light)', 
-                              border: '1px solid var(--border)',
+                              border: '1px solid var(--border)', 
                               fontSize: '13px',
                               cursor: 'pointer',
                               opacity: alert.isRead ? 0.6 : 1
                             }}
                           >
-                            <div style={{ fontWeight: '700', marginBottom: '4px', color: alert.type === 'DELETION' ? '#dc2626' : 'var(--accent)', display: 'flex', justifyContent: 'space-between' }}>
+                            <div style={{ fontWeight: '700', marginBottom: '4px', color: alert.type === 'DELETION' ? 'var(--status-danger-text)' : 'var(--accent)', display: 'flex', justifyContent: 'space-between' }}>
                               {alert.type === 'DELETION' ? 'Penghapusan Data' : 'Pengeluaran Tinggi'}
-                              {alert.isRead && <Check size={14} color="#059669" />}
+                              {alert.isRead && <Check size={14} color="var(--status-success-text)" />}
                             </div>
                             {alert.message}
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -240,15 +316,15 @@ const AdminLayout = () => {
               </div>
             )}
 
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/admin')}>
-              <Bell size={22} color={pendingCount > 0 ? '#dc2626' : 'var(--text-muted)'} />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '6px' }} onClick={() => navigate('/admin')}>
+              <Bell size={22} color={pendingCount > 0 ? 'var(--status-danger-text)' : 'var(--text-muted)'} />
               {pendingCount > 0 && (
-                <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#dc2626', color: 'white', fontSize: '10px', fontWeight: 'bold', minWidth: '18px', height: '18px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 4px', border: '2px solid white' }}>
+                <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--status-danger-text)', color: 'white', fontSize: '10px', fontWeight: 'bold', minWidth: '18px', height: '18px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '0 4px', border: '2px solid white' }}>
                   {pendingCount}
                 </span>
               )}
             </div>
-            <a href="/" target="_blank" className="btn btn-accent" style={{ padding: '8px 16px', fontSize: '14px', whiteSpace: 'nowrap' }}>Katalog</a>
+            <a href="/" target="_blank" className="btn btn-accent btn-sm" style={{ padding: '8px 14px', fontSize: '13px', whiteSpace: 'nowrap' }}>Katalog</a>
           </div>
         </header>
         

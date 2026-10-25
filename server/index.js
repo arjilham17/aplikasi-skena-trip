@@ -15,7 +15,12 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || 'skena-trip-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET env var tidak diset. Server tidak akan dijalankan di production.');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+const _JWT_SECRET = JWT_SECRET || 'skena-trip-secret-key-dev-only';
 
 // ── Pastikan folder uploads tersedia (Penting untuk Deployment) ───────────────
 const uploadDir = path.join(__dirname, 'uploads');
@@ -91,7 +96,7 @@ const authenticateToken = (req, res, next) => {
   
   if (!token) return res.status(401).json({ error: 'Akses ditolak. Token tidak ditemukan.' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, _JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Token tidak valid.' });
     req.user = user;
     next();
@@ -193,7 +198,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     const sessionToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      _JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -354,23 +359,122 @@ app.put('/api/users/change-password', authenticateToken, async (req, res) => {
 
 app.get('/api/trips', async (req, res) => {
   try {
+    const { 
+      page, 
+      limit, 
+      search, 
+      destination, 
+      minPrice, 
+      maxPrice, 
+      startDate, 
+      endDate, 
+      sortBy = 'newest' 
+    } = req.query;
+
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { destination: { contains: search } },
+        { description: { contains: search } }
+      ];
+    }
+
+    if (destination) {
+      where.destination = { contains: destination };
+    }
+
+    if (minPrice || maxPrice) {
+      where.price = {};
+      if (minPrice) where.price.gte = parseFloat(minPrice);
+      if (maxPrice) where.price.lte = parseFloat(maxPrice);
+    }
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate) where.date.lte = new Date(endDate);
+    }
+
+    let orderBy = { createdAt: 'desc' };
+    if (sortBy === 'price-low' || sortBy === 'price_asc') orderBy = { price: 'asc' };
+    else if (sortBy === 'price-high' || sortBy === 'price_desc') orderBy = { price: 'desc' };
+    else if (sortBy === 'date-near' || sortBy === 'date_asc') orderBy = { date: 'asc' };
+    else if (sortBy === 'newest') orderBy = { createdAt: 'desc' };
+
+    const isPaginated = page !== undefined || limit !== undefined;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, parseInt(limit) || 9);
+
+    if (isPaginated && sortBy !== 'popular') {
+      const total = await prisma.trip.count({ where });
+      const trips = await prisma.trip.findMany({
+        where,
+        include: {
+          bookings: {
+            where: { status: { in: ['pending', 'confirmed'] } },
+            select: { pax: true }
+          }
+        },
+        orderBy,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum
+      });
+
+      const data = trips.map(trip => {
+        const currentPax = trip.bookings.reduce((sum, b) => sum + b.pax, 0);
+        const { bookings, ...tripData } = trip;
+        return { ...tripData, currentPax };
+      });
+
+      return res.json({
+        data,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      });
+    }
+
     const trips = await prisma.trip.findMany({ 
+      where,
       include: {
         bookings: {
           where: { status: { in: ['pending', 'confirmed'] } },
           select: { pax: true }
         }
       },
-      orderBy: { createdAt: 'desc' } 
+      orderBy: sortBy === 'popular' ? undefined : orderBy 
     });
 
-    const tripsWithPax = trips.map(trip => {
+    let data = trips.map(trip => {
       const currentPax = trip.bookings.reduce((sum, b) => sum + b.pax, 0);
       const { bookings, ...tripData } = trip;
       return { ...tripData, currentPax };
     });
 
-    res.json(tripsWithPax);
+    if (sortBy === 'popular') {
+      data.sort((a, b) => (b.currentPax || 0) - (a.currentPax || 0));
+    }
+
+    if (isPaginated) {
+      const total = data.length;
+      const paginatedData = data.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+      return res.json({
+        data: paginatedData,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      });
+    }
+
+    res.json(data);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -530,6 +634,18 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
 
     const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) } });
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+    // Cegah booking duplikat — user tidak boleh punya booking aktif untuk trip yang sama
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        userId,
+        tripId: parseInt(tripId),
+        status: { in: ['pending', 'confirmed'] }
+      }
+    });
+    if (existingBooking) {
+      return res.status(400).json({ error: 'Anda sudah memiliki pesanan aktif untuk trip ini.' });
+    }
     
     // Check quota
     const totalBooked = await prisma.booking.aggregate({
@@ -557,7 +673,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
 
     if (promoCode) {
       const promo = await prisma.promoCode.findUnique({ where: { code: promoCode.toUpperCase() } });
-      if (promo && promo.isActive) {
+      if (promo && promo.isActive && !(promo.expiresAt && new Date() > promo.expiresAt)) {
         const discount = promo.discountType === 'percentage' 
           ? Math.round(totalPrice * (promo.discountAmount / 100)) 
           : Math.round(promo.discountAmount);
@@ -622,11 +738,96 @@ app.put('/api/bookings/:id/status', authenticateToken, isAdmin, async (req, res)
     const { status } = req.body; 
     const booking = await prisma.booking.update({
       where: { id: parseInt(req.params.id) },
-      data: { status }
+      data: { status },
+      include: { user: true, trip: true }
     });
     await createActivityLog(req.user.userId, 'UPDATE_BOOKING_STATUS', `Admin mengubah status pesanan #${booking.id} menjadi ${status.toUpperCase()}`);
+
+    // Email notifikasi ke customer saat status berubah
+    if (booking.user?.email && process.env.SMTP_USER) {
+      const statusLabel = status === 'confirmed' ? 'Dikonfirmasi' : status === 'cancelled' ? 'Dibatalkan' : status;
+      const statusColor = status === 'confirmed' ? '#16a34a' : status === 'cancelled' ? '#dc2626' : '#2563eb';
+      transporter.sendMail({
+        from: `"Skena Trip" <${process.env.SMTP_USER}>`,
+        to: booking.user.email,
+        subject: `Update Status Pemesanan #${booking.id} - ${statusLabel}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+            <h2 style="color:#0f172a;margin-top:0">Update Pemesanan Skena Trip</h2>
+            <p>Halo <strong>${booking.user.name}</strong>,</p>
+            <p>Status pesanan Anda untuk trip <strong>${booking.trip?.title || 'Trip'}</strong> telah diperbarui menjadi:</p>
+            <p style="font-size:18px;font-weight:bold;color:${statusColor}">${statusLabel.toUpperCase()}</p>
+            <p style="color:#64748b;font-size:14px">Silakan masuk ke dashboard akun Anda untuk melihat rincian pemesanan.</p>
+          </div>
+        `
+      }).catch(err => console.error('[EMAIL NOTIF FAILED]', err.message));
+    }
+
     res.json(booking);
   } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+// Customer Cancel Booking (Batas minimal H-3 sebelum keberangkatan)
+app.put('/api/bookings/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { trip: true, user: true }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+
+    if (booking.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'Anda tidak berwenang membatalkan pesanan ini.' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ error: 'Pesanan ini sudah dibatalkan sebelumnya.' });
+    }
+
+    // Batas waktu: minimal 3 hari (72 jam) sebelum tanggal trip
+    const tripDate = new Date(booking.trip.date);
+    const now = new Date();
+    const diffHours = (tripDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (diffHours < 72) {
+      return res.status(400).json({ 
+        error: 'Pembatalan mandiri hanya dapat dilakukan minimal 3 hari (H-3) sebelum jadwal keberangkatan. Silakan hubungi admin.' 
+      });
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'cancelled' }
+    });
+
+    await createActivityLog(req.user.userId, 'CANCEL_BOOKING', `Customer membatalkan pesanan #${booking.id} (${booking.trip.title})`);
+    await createAdminNotification('BOOKING_CANCELLED', `Pesanan #${booking.id} untuk trip "${booking.trip.title}" telah dibatalkan oleh customer ${booking.user.name}.`);
+
+    // Kirim email konfirmasi pembatalan ke customer
+    if (booking.user?.email && process.env.SMTP_USER) {
+      transporter.sendMail({
+        from: `"Skena Trip" <${process.env.SMTP_USER}>`,
+        to: booking.user.email,
+        subject: `Pembatalan Pemesanan #${booking.id} Berhasil`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+            <h2 style="color:#0f172a;margin-top:0">Pembatalan Pemesanan Berhasil</h2>
+            <p>Halo <strong>${booking.user.name}</strong>,</p>
+            <p>Pesanan Anda untuk trip <strong>${booking.trip.title}</strong> telah berhasil dibatalkan.</p>
+            <p style="color:#64748b;font-size:14px">Jika ada pertanyaan atau permohonan pengembalian dana, silakan hubungi customer service kami.</p>
+          </div>
+        `
+      }).catch(err => console.error('[EMAIL NOTIF FAILED]', err.message));
+    }
+
+    res.json({ message: 'Pesanan berhasil dibatalkan.', booking: updatedBooking });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.delete('/api/bookings/:id', authenticateToken, isSuperAdmin, async (req, res) => {
@@ -649,6 +850,83 @@ app.delete('/api/bookings/:id', authenticateToken, isSuperAdmin, async (req, res
     res.status(204).send();
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// WISHLIST API
+// ==========================================
+
+app.get('/api/wishlist', authenticateToken, async (req, res) => {
+  try {
+    const wishlists = await prisma.wishlist.findMany({
+      where: { userId: req.user.userId },
+      include: {
+        trip: {
+          include: {
+            bookings: {
+              where: { status: { in: ['pending', 'confirmed'] } },
+              select: { pax: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const data = wishlists.map(item => {
+      const currentPax = item.trip.bookings?.reduce((sum, b) => sum + b.pax, 0) || 0;
+      const { bookings, ...tripData } = item.trip;
+      return {
+        id: item.id,
+        createdAt: item.createdAt,
+        trip: { ...tripData, currentPax }
+      };
+    });
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/wishlist/ids', authenticateToken, async (req, res) => {
+  try {
+    const items = await prisma.wishlist.findMany({
+      where: { userId: req.user.userId },
+      select: { tripId: true }
+    });
+    res.json(items.map(i => i.tripId));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/wishlist/:tripId', authenticateToken, async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.tripId);
+    const userId = req.user.userId;
+
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) return res.status(404).json({ error: 'Trip tidak ditemukan.' });
+
+    const existing = await prisma.wishlist.findUnique({
+      where: {
+        userId_tripId: { userId, tripId }
+      }
+    });
+
+    if (existing) {
+      await prisma.wishlist.delete({ where: { id: existing.id } });
+      return res.json({ wishlisted: false, message: 'Trip dihapus dari wishlist.' });
+    } else {
+      await prisma.wishlist.create({
+        data: { userId, tripId }
+      });
+      return res.json({ wishlisted: true, message: 'Trip ditambahkan ke wishlist.' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -827,9 +1105,14 @@ app.get('/api/promos', authenticateToken, isAdmin, async (req, res) => {
 
 app.post('/api/promos', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { code, discountAmount, discountType } = req.body;
+    const { code, discountAmount, discountType, expiresAt } = req.body;
     const promo = await prisma.promoCode.create({
-      data: { code: code.toUpperCase(), discountAmount: parseFloat(discountAmount), discountType: discountType || 'flat' }
+      data: {
+        code: code.toUpperCase(),
+        discountAmount: parseFloat(discountAmount),
+        discountType: discountType || 'flat',
+        expiresAt: expiresAt ? new Date(expiresAt) : null
+      }
     });
     await createActivityLog(req.user.userId, 'CREATE_PROMO', `Admin membuat kode promo baru: ${promo.code}`);
     res.status(201).json(promo);
@@ -872,6 +1155,9 @@ app.post('/api/promos/validate', async (req, res) => {
     const promo = await prisma.promoCode.findUnique({ where: { code: code.toUpperCase() } });
     if (!promo) return res.status(404).json({ error: 'Kode promo tidak ditemukan' });
     if (!promo.isActive) return res.status(400).json({ error: 'Kode promo sudah tidak aktif' });
+    if (promo.expiresAt && new Date() > promo.expiresAt) {
+      return res.status(400).json({ error: 'Kode promo sudah kedaluwarsa' });
+    }
     
     res.json({ discountAmount: promo.discountAmount, discountType: promo.discountType });
   } catch (error) { res.status(500).json({ error: error.message }); }

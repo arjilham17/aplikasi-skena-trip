@@ -23,6 +23,7 @@ model User {
   bookings  Booking[]
   logs      ActivityLog[]
   reviews   Review[]
+  wishlists Wishlist[]
 }
 
 model Trip {
@@ -44,6 +45,7 @@ model Trip {
   expenses    Expense[]
   reviews     Review[]
   itinerary   ItineraryItem[]
+  wishlists   Wishlist[]
 }
 
 model Booking {
@@ -95,6 +97,7 @@ model PromoCode {
   discountAmount  Float
   discountType    String   @default("flat") // "flat" or "percentage"
   isActive        Boolean  @default(true)
+  expiresAt       DateTime?
   createdAt       DateTime @default(now())
 }
 
@@ -180,4 +183,15 @@ model PaymentMethod {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   bookings    Booking[]
+}
+
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tripId    Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
 }

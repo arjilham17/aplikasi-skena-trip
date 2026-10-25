@@ -76,10 +76,10 @@ const Profile = () => {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '100px', minHeight: '80vh', paddingBottom: '100px' }}>
+    <div className="container" style={{ paddingTop: '16px', minHeight: '80vh', paddingBottom: '80px' }}>
       <h1 style={{ marginBottom: '32px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500 }}>Pengaturan Profil</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '32px' }}>
         {/* Profile Data Form */}
         <div className="card" style={{ padding: '32px' }}>
           <h3 style={{ marginBottom: '24px' }}>Informasi Pribadi</h3>

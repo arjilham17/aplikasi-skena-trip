@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { MapPin, Star, MessageSquare, Image as ImageIcon, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { MapPin, Star, MessageSquare, Image as ImageIcon, Clock, Share2, Heart, Copy, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl } from '../../utils/getImageUrl';
 import { LayeredStack } from '../../components/ui/LayeredStack';
 
@@ -19,6 +19,16 @@ const TripDetail = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
 
+  // Feature 6: Wishlist state
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  // Feature 7: Share state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Feature 8: Gallery Lightbox state
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
   useEffect(() => {
     api.get(`/trips/${id}`)
       .then(res => setTrip(res.data))
@@ -31,7 +41,63 @@ const TripDetail = () => {
         if (res.data.length > 0) setSelectedMethod(res.data[0]);
       })
       .catch(console.error);
+
+    const token = localStorage.getItem('token');
+    if (token && id) {
+      api.get('/wishlist/ids')
+        .then(res => {
+          if (Array.isArray(res.data)) {
+            setIsWishlisted(res.data.includes(parseInt(id)));
+          }
+        })
+        .catch(() => {});
+    }
   }, [id]);
+
+  const toggleWishlist = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      if (window.confirm('Silakan masuk ke akun Anda untuk menyimpan trip ke wishlist. Masuk sekarang?')) {
+        navigate('/login');
+      }
+      return;
+    }
+    try {
+      const res = await api.post(`/wishlist/${trip.id}`);
+      setIsWishlisted(!!res.data?.wishlisted);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!trip) return;
+    const text = `Halo! Yuk cek trip seru "${trip.title}" ke ${trip.destination} di Skena Trip:\n${window.location.href}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleNativeShare = async () => {
+    if (!trip) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: trip.title,
+          text: `Trip ke ${trip.destination} bersama Skena Trip`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') handleCopyLink();
+      }
+    } else {
+      setShowShareModal(true);
+    }
+  };
 
   const [bookingMsg, setBookingMsg] = useState({ text: '', type: '' });
 
@@ -71,9 +137,38 @@ const TripDetail = () => {
     }
   };
 
+  const galleryImages = (() => {
+    if (!trip) return [];
+    let list = [];
+    if (Array.isArray(trip.images)) {
+      list = trip.images;
+    } else if (typeof trip.images === 'string') {
+      try { list = JSON.parse(trip.images); } catch { list = []; }
+    }
+    if (list.length === 0 && trip.image) {
+      list = [trip.image];
+    }
+    return list;
+  })();
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowRight' && galleryImages.length > 1) {
+        setLightboxIndex(prev => (prev + 1) % galleryImages.length);
+      }
+      if (e.key === 'ArrowLeft' && galleryImages.length > 1) {
+        setLightboxIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, galleryImages.length]);
+
   if (isLoading) {
     return (
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px' }}>
+      <div className="container" style={{ paddingTop: '20px', paddingBottom: '60px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ width: '300px' }}>
             <div className="skeleton skeleton-title" style={{ width: '100%' }}></div>
@@ -106,7 +201,7 @@ const TripDetail = () => {
     );
   }
 
-  if (!trip) return <div style={{ paddingTop: '100px', textAlign: 'center' }}>Trip tidak ditemukan</div>;
+  if (!trip) return <div className="container" style={{ paddingTop: '40px', paddingBottom: '60px', textAlign: 'center' }}><h3>Trip tidak ditemukan</h3></div>;
 
   const currentPax = trip.currentPax || 0;
   const isFull = currentPax >= trip.quota;
@@ -124,7 +219,7 @@ const TripDetail = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
       className="container" 
-      style={{ paddingTop: '100px', paddingBottom: '100px' }}
+      style={{ paddingTop: '16px', paddingBottom: '100px' }}
     >
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
@@ -138,13 +233,58 @@ const TripDetail = () => {
             <MapPin size={16}/> {trip.destination} &bull; {trip.duration}
           </p>
         </div>
-        {trip.avgRating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-white)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-             <Star size={20} color="#eab308" fill="#eab308" />
-             <span style={{ fontWeight: '700', fontSize: '18px' }}>{trip.avgRating.toFixed(1)}</span>
-             <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>({trip.reviews?.length} Ulasan)</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {trip.avgRating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-white)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+               <Star size={20} color="#eab308" fill="#eab308" />
+               <span style={{ fontWeight: '700', fontSize: '18px' }}>{trip.avgRating.toFixed(1)}</span>
+               <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>({trip.reviews?.length} Ulasan)</span>
+            </div>
+          )}
+
+          {/* Feature 6: Wishlist button */}
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            aria-label="Wishlist"
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              background: isWishlisted ? 'var(--status-danger-bg)' : 'var(--bg-white)',
+              color: isWishlisted ? 'var(--status-danger-text)' : 'var(--text-main)',
+              border: '1px solid ' + (isWishlisted ? 'var(--status-danger-border)' : 'var(--border)'),
+              cursor: 'pointer'
+            }}
+          >
+            <Heart size={18} fill={isWishlisted ? 'var(--danger)' : 'none'} color={isWishlisted ? 'var(--danger)' : 'currentColor'} />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>{isWishlisted ? 'Tersimpan' : 'Favorit'}</span>
+          </button>
+
+          {/* Feature 7: Share button */}
+          <button
+            type="button"
+            onClick={handleNativeShare}
+            aria-label="Bagikan"
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              background: 'var(--bg-white)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer'
+            }}
+          >
+            <Share2 size={18} />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Bagikan</span>
+          </button>
+        </div>
       </motion.div>
       
       <div className="grid-responsive" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', marginTop: '32px' }}>
@@ -153,43 +293,66 @@ const TripDetail = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
+          {/* Feature 8: Foto Trip & Galeri Lightbox */}
           <div style={{ marginBottom: '48px', position: 'relative', zIndex: 10 }}>
-            {trip.images && trip.images.length > 0 ? (
-              <LayeredStack 
-                className="w-full" 
-                style={{ 
-                  minHeight: '450px', 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                  gap: '20px',
-                  padding: '20px',
-                  background: 'var(--bg-light)',
-                  borderRadius: '16px'
-                }}
-              >
-                {trip.images.map((img, i) => (
-                  <img 
-                    key={i} 
-                    src={getImageUrl(img)} 
-                    alt={`Trip Image ${i + 1}`}
-                    style={{ 
-                      width: '100%', 
-                      aspectRatio: '3/4', 
-                      objectFit: 'cover', 
-                      borderRadius: '12px', 
-                      boxShadow: 'var(--shadow-lg)',
-                      border: '4px solid white'
-                    }} 
-                  />
-                ))}
-              </LayeredStack>
-            ) : trip.image ? (
-              <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', position: 'relative' }}>
-                <img 
-                  src={getImageUrl(trip.image)} 
-                  alt="Trip" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: trip.imagePosition || 'center' }} 
-                />
+            {galleryImages.length > 0 ? (
+              <div style={{ position: 'relative' }}>
+                <LayeredStack 
+                  className="w-full" 
+                  style={{ 
+                    minHeight: '450px', 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                    gap: '20px',
+                    padding: '20px',
+                    background: 'var(--bg-light)',
+                    borderRadius: '16px'
+                  }}
+                >
+                  {galleryImages.map((img, i) => (
+                    <img 
+                      key={i} 
+                      src={getImageUrl(img)} 
+                      alt={`Trip Image ${i + 1}`}
+                      onClick={() => setLightboxIndex(i)}
+                      title="Klik untuk perbesar foto"
+                      style={{ 
+                        width: '100%', 
+                        aspectRatio: '3/4', 
+                        objectFit: 'cover', 
+                        borderRadius: '12px', 
+                        boxShadow: 'var(--shadow-lg)',
+                        border: '4px solid white',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease'
+                      }} 
+                    />
+                  ))}
+                </LayeredStack>
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(0)}
+                  style={{
+                    position: 'absolute',
+                    bottom: '16px',
+                    right: '16px',
+                    zIndex: 25,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '24px',
+                    padding: '8px 18px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <ImageIcon size={16} /> Lihat Semua ({galleryImages.length} Foto)
+                </button>
               </div>
             ) : (
               <div style={{ height: '450px', width: '100%', background: 'var(--bg-light)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-muted)' }}>
@@ -354,7 +517,7 @@ const TripDetail = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <div className="card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
+          <div id="booking-section" className="card" style={{ padding: '24px', position: 'sticky', top: '90px' }}>
             <h3 style={{ marginBottom: '8px' }}>Detail Harga</h3>
             <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '24px' }}>
               Rp {trip.price.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ pax</span>
@@ -383,10 +546,10 @@ const TripDetail = () => {
                   placeholder="Masukkan kode promo"
                   style={{ textTransform: 'uppercase' }}
                 />
-                <button onClick={validatePromo} className="btn" style={{ background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>Pakai</button>
+                <button onClick={validatePromo} className="btn btn-secondary btn-sm">Pakai</button>
               </div>
-              {promoError && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '8px' }}>{promoError}</p>}
-              {appliedPromo && <p style={{ color: '#059669', fontSize: '12px', marginTop: '8px' }}>Promo berhasil digunakan! (-{appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : 'Rp ' + appliedPromo.discountAmount.toLocaleString()})</p>}
+              {promoError && <p style={{ color: 'var(--status-danger-text)', fontSize: '12px', marginTop: '8px', fontWeight: 500 }}>{promoError}</p>}
+              {appliedPromo && <p style={{ color: 'var(--status-success-text)', fontSize: '12px', marginTop: '8px', fontWeight: 500 }}>Promo berhasil digunakan! (-{appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : 'Rp ' + appliedPromo.discountAmount.toLocaleString()})</p>}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingTop: '16px', borderTop: '1px solid var(--border)', fontSize: '14px', color: 'var(--text-muted)' }}>
@@ -456,42 +619,303 @@ const TripDetail = () => {
 
             {bookingMsg.text && (
               <div style={{ 
+                marginTop: '16px',
                 marginBottom: '16px', 
                 padding: '12px', 
                 borderRadius: '8px', 
-                background: bookingMsg.type === 'error' ? '#fee2e2' : '#d1fae5', 
-                color: bookingMsg.type === 'error' ? '#dc2626' : '#059669', 
+                background: bookingMsg.type === 'error' ? 'var(--status-danger-bg)' : 'var(--status-success-bg)', 
+                color: bookingMsg.type === 'error' ? 'var(--status-danger-text)' : 'var(--status-success-text)', 
                 fontSize: '13px', 
                 fontWeight: '600',
-                border: `1px solid ${bookingMsg.type === 'error' ? '#fecaca' : '#34d399'}`
+                border: `1px solid ${bookingMsg.type === 'error' ? 'var(--status-danger-border)' : 'var(--status-success-border)'}`
               }}>
                 {bookingMsg.text}
                 {bookingMsg.incomplete && (
                   <button 
                     onClick={() => navigate('/profile')}
-                    style={{ 
-                      display: 'block', 
-                      marginTop: '10px', 
-                      background: '#dc2626', 
-                      color: 'white', 
-                      padding: '8px 12px', 
-                      borderRadius: '6px', 
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      width: '100%',
-                      textAlign: 'center'
-                    }}
+                    className="btn btn-primary btn-block btn-sm"
+                    style={{ marginTop: '10px' }}
                   >
                     Lengkapi Profil Sekarang
                   </button>
                 )}
               </div>
             )}
-            <p style={{ textAlign: 'center', fontSize: '12px', color: isFull ? '#dc2626' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '400' }}>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: isFull ? 'var(--status-danger-text)' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '500' }}>
               {isFull ? 'Maaf, kuota sudah habis terjual!' : `Sisa Kuota: ${remainingSeats} kursi lagi`}
             </p>
           </div>
         </motion.div>
+      </div>
+
+      {/* Feature 7: Share Modal */}
+      <AnimatePresence>
+        {showShareModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.55)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 1500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="card"
+              style={{ maxWidth: '420px', width: '100%', padding: '24px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Bagikan Trip</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
+                Ajak teman atau keluarga ikut menjelajahi {trip.destination}!
+              </p>
+
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleShareWhatsApp}
+                  style={{
+                    background: '#25D366',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    fontWeight: 600,
+                    padding: '12px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  Bagikan ke WhatsApp
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCopyLink}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', borderRadius: '8px' }}
+                >
+                  {copied ? <Check size={18} color="#16a34a" /> : <Copy size={18} />}
+                  {copied ? 'Tautan Berhasil Disalin!' : 'Salin Tautan'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Feature 8: Lightbox Modal */}
+      <AnimatePresence>
+        {lightboxIndex !== null && galleryImages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.94)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 2000,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px'
+            }}
+            onClick={() => setLightboxIndex(null)}
+          >
+            {/* Top Bar */}
+            <div 
+              style={{ width: '100%', maxWidth: '1100px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff', zIndex: 10, paddingBottom: '12px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span style={{ fontSize: '15px', fontWeight: 500, opacity: 0.9 }}>
+                {trip.title} &bull; Foto {lightboxIndex + 1} dari {galleryImages.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Main Stage */}
+            <div 
+              style={{ position: 'relative', width: '100%', maxWidth: '1100px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {galleryImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                  aria-label="Foto Sebelumnya"
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    zIndex: 20,
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(4px)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '46px',
+                    height: '46px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ChevronLeft size={28} />
+                </button>
+              )}
+
+              <img
+                src={getImageUrl(galleryImages[lightboxIndex])}
+                alt={`Galeri Foto ${lightboxIndex + 1}`}
+                style={{
+                  maxHeight: '75vh',
+                  maxWidth: '85vw',
+                  objectFit: 'contain',
+                  borderRadius: '12px',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+                }}
+              />
+
+              {galleryImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(prev => (prev + 1) % galleryImages.length)}
+                  aria-label="Foto Selanjutnya"
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    zIndex: 20,
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(4px)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '46px',
+                    height: '46px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ChevronRight size={28} />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Thumbnails Strip */}
+            {galleryImages.length > 1 && (
+              <div 
+                style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '90vw', padding: '12px 0', zIndex: 10 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {galleryImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setLightboxIndex(idx)}
+                    style={{
+                      border: idx === lightboxIndex ? '2px solid #fff' : '2px solid transparent',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      opacity: idx === lightboxIndex ? 1 : 0.5,
+                      cursor: 'pointer',
+                      padding: 0,
+                      background: 'none',
+                      transition: 'opacity 0.2s ease'
+                    }}
+                  >
+                    <img
+                      src={getImageUrl(img)}
+                      alt={`Thumbnail ${idx + 1}`}
+                      style={{ width: '56px', height: '42px', objectFit: 'cover', display: 'block' }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Sticky Booking Bar */}
+      <div 
+        className="mobile-only-bar"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid var(--border)',
+          padding: '12px 20px',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 900,
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.1)'
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Mulai dari</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent)' }}>
+            Rp {trip.price.toLocaleString()}
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}> / pax</span>
+          </div>
+        </div>
+        <button 
+          className="btn btn-primary btn-sm"
+          style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)' }}
+          onClick={() => {
+            const el = document.getElementById('booking-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          disabled={isFull}
+        >
+          {isFull ? 'Trip Penuh' : 'Pesan Sekarang'}
+        </button>
       </div>
     </motion.div>
   );
