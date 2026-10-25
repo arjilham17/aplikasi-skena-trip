@@ -854,6 +854,83 @@ app.delete('/api/bookings/:id', authenticateToken, isSuperAdmin, async (req, res
 });
 
 // ==========================================
+// WISHLIST API
+// ==========================================
+
+app.get('/api/wishlist', authenticateToken, async (req, res) => {
+  try {
+    const wishlists = await prisma.wishlist.findMany({
+      where: { userId: req.user.userId },
+      include: {
+        trip: {
+          include: {
+            bookings: {
+              where: { status: { in: ['pending', 'confirmed'] } },
+              select: { pax: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const data = wishlists.map(item => {
+      const currentPax = item.trip.bookings?.reduce((sum, b) => sum + b.pax, 0) || 0;
+      const { bookings, ...tripData } = item.trip;
+      return {
+        id: item.id,
+        createdAt: item.createdAt,
+        trip: { ...tripData, currentPax }
+      };
+    });
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/wishlist/ids', authenticateToken, async (req, res) => {
+  try {
+    const items = await prisma.wishlist.findMany({
+      where: { userId: req.user.userId },
+      select: { tripId: true }
+    });
+    res.json(items.map(i => i.tripId));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/wishlist/:tripId', authenticateToken, async (req, res) => {
+  try {
+    const tripId = parseInt(req.params.tripId);
+    const userId = req.user.userId;
+
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) return res.status(404).json({ error: 'Trip tidak ditemukan.' });
+
+    const existing = await prisma.wishlist.findUnique({
+      where: {
+        userId_tripId: { userId, tripId }
+      }
+    });
+
+    if (existing) {
+      await prisma.wishlist.delete({ where: { id: existing.id } });
+      return res.json({ wishlisted: false, message: 'Trip dihapus dari wishlist.' });
+    } else {
+      await prisma.wishlist.create({
+        data: { userId, tripId }
+      });
+      return res.json({ wishlisted: true, message: 'Trip ditambahkan ke wishlist.' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // PAYMENTS API
 // ==========================================
 

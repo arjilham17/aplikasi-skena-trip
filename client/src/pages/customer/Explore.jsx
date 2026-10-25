@@ -19,6 +19,47 @@ const Explore = () => {
   const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 9, total: 0, totalPages: 1 });
+  const [wishlistIds, setWishlistIds] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    api.get('/wishlist/ids')
+      .then(res => setWishlistIds(res.data || []))
+      .catch(() => {});
+  }, []);
+
+  const handleToggleWishlist = async (tripId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      if (window.confirm('Silakan masuk ke akun Anda untuk menyimpan trip ke wishlist. Masuk sekarang?')) {
+        navigate('/login');
+      }
+      return;
+    }
+    try {
+      const res = await api.post(`/wishlist/${tripId}`);
+      if (res.data?.wishlisted) {
+        setWishlistIds(prev => [...prev, tripId]);
+      } else {
+        setWishlistIds(prev => prev.filter(id => id !== tripId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getQuotaBadge = (trip) => {
+    const currentPax = trip.currentPax || 0;
+    const remaining = Math.max(0, trip.quota - currentPax);
+    if (remaining === 0) {
+      return { text: '🔒 PENUH', color: '#b91c1c', bg: '#fee2e2', borderColor: '#fca5a5' };
+    }
+    if (remaining <= 3) {
+      return { text: `⚡ Sisa ${remaining} Kursi!`, color: '#b45309', bg: '#fef3c7', borderColor: '#fde68a' };
+    }
+    return { text: `✓ Sisa ${remaining} Kursi`, color: '#047857', bg: '#d1fae5', borderColor: '#a7f3d0' };
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -159,13 +200,16 @@ const Explore = () => {
               >
                 <ShowcaseCard
                   tagline={`${trip.duration} | ${trip.currentPax}/${trip.quota} Pax`}
+                  quotaBadge={getQuotaBadge(trip)}
+                  isWishlisted={wishlistIds.includes(trip.id)}
+                  onWishlistClick={() => handleToggleWishlist(trip.id)}
                   heading={trip.title}
                   description={trip.destination}
                   imageUrl={trip.image ? getImageUrl(trip.image) : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"}
                   ctaText={`Detail Rp ${trip.price.toLocaleString()}`}
                   onCtaClick={() => navigate(`/trip/${trip.id}`)}
                   brandName={new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}
-                  services={trip.currentPax >= trip.quota ? ["PENUH"] : ["TERSEDIA"]}
+                  services={trip.currentPax >= trip.quota ? ["PENUH"] : [`SISA ${Math.max(0, trip.quota - (trip.currentPax || 0))} SEAT`]}
                 />
               </motion.div>
             ))}

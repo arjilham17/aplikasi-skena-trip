@@ -18,6 +18,9 @@ export function ShowcaseCard({
     enableTilt = true,
     maxTilt = 8,
     enableParallax = true,
+    quotaBadge,
+    isWishlisted = false,
+    onWishlistClick,
 }) {
     const cardRef = React.useRef(null)
     const [isHovered, setIsHovered] = React.useState(false)
@@ -108,10 +111,68 @@ export function ShowcaseCard({
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
                     >
-                        <span style={{ color: 'var(--on-primary)', fontSize: '14px', fontWeight: '500', letterSpacing: '-0.02em', background: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', boxShadow: 'var(--shadow-sm)' }}>
+                        <span style={{ color: 'var(--on-primary)', fontSize: '13px', fontWeight: '500', letterSpacing: '-0.02em', background: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', boxShadow: 'var(--shadow-sm)' }}>
                             {tagline}
                         </span>
                     </motion.div>
+                )}
+
+                {quotaBadge && (
+                    <motion.div
+                        style={{ position: 'absolute', top: tagline ? '48px' : '16px', left: '16px', zIndex: 20 }}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.5 }}
+                    >
+                        <span style={{ 
+                            color: quotaBadge.color || '#fff', 
+                            fontSize: '12px', 
+                            fontWeight: '600', 
+                            background: quotaBadge.bg || 'rgba(0,0,0,0.7)', 
+                            padding: '3px 10px', 
+                            borderRadius: '16px', 
+                            border: `1px solid ${quotaBadge.borderColor || 'transparent'}`,
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}>
+                            {quotaBadge.text}
+                        </span>
+                    </motion.div>
+                )}
+
+                {onWishlistClick && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onWishlistClick(e);
+                        }}
+                        aria-label="Simpan ke Wishlist"
+                        style={{
+                            position: 'absolute',
+                            top: '16px',
+                            right: '16px',
+                            zIndex: 25,
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: isWishlisted ? '#fee2e2' : 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(4px)',
+                            border: '1px solid ' + (isWishlisted ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)'),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill={isWishlisted ? "#ef4444" : "none"} stroke={isWishlisted ? "#ef4444" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                        </svg>
+                    </button>
                 )}
 
                 <motion.div
