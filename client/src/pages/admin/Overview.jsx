@@ -375,7 +375,7 @@ const AdminOverview = () => {
                </div>
                <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Total Pengeluaran</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#dc2626' }}>- Rp {totalExpenses.toLocaleString()}</div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--status-danger-text)' }}>- Rp {totalExpenses.toLocaleString()}</div>
                </div>
             </div>
           )}
@@ -387,7 +387,7 @@ const AdminOverview = () => {
             <h3 style={{ margin: 0 }}>Manajemen Pesanan Masuk</h3>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Menampilkan {filteredBookings.length} pesanan</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -419,7 +419,7 @@ const AdminOverview = () => {
                         {b.status === 'pending' ? (
                           <>
                             <button onClick={() => handleUpdateStatus(b.id, 'confirmed')} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }}>Setujui</button>
-                            <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', color: '#dc2626', border: 'none' }}>Tolak</button>
+                            <button onClick={() => handleUpdateStatus(b.id, 'cancelled')} className="btn" style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)' }}>Tolak</button>
                             {b.user.whatsapp && (
                               <button 
                                 onClick={() => {
@@ -448,7 +448,7 @@ const AdminOverview = () => {
                             onClick={() => handleDeleteBooking(b.id)} 
                             className="btn" 
                             title="Hapus Pesanan"
-                            style={{ padding: '6px', background: '#fee2e2', color: '#dc2626', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ padding: '6px', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
                             <Trash2 size={16} />
                           </button>

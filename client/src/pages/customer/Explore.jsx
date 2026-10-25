@@ -53,12 +53,27 @@ const Explore = () => {
     const currentPax = trip.currentPax || 0;
     const remaining = Math.max(0, trip.quota - currentPax);
     if (remaining === 0) {
-      return { text: '🔒 PENUH', color: '#b91c1c', bg: '#fee2e2', borderColor: '#fca5a5' };
+      return { 
+        text: '🔒 PENUH', 
+        color: 'var(--status-danger-text)', 
+        bg: 'var(--status-danger-bg)', 
+        borderColor: 'var(--status-danger-border)' 
+      };
     }
     if (remaining <= 3) {
-      return { text: `⚡ Sisa ${remaining} Kursi!`, color: '#b45309', bg: '#fef3c7', borderColor: '#fde68a' };
+      return { 
+        text: `⚡ Sisa ${remaining} Kursi!`, 
+        color: 'var(--status-warning-text)', 
+        bg: 'var(--status-warning-bg)', 
+        borderColor: 'var(--status-warning-border)' 
+      };
     }
-    return { text: `✓ Sisa ${remaining} Kursi`, color: '#047857', bg: '#d1fae5', borderColor: '#a7f3d0' };
+    return { 
+      text: `✓ Sisa ${remaining} Kursi`, 
+      color: 'var(--status-success-text)', 
+      bg: 'var(--status-success-bg)', 
+      borderColor: 'var(--status-success-border)' 
+    };
   };
 
   useEffect(() => {
@@ -106,10 +121,10 @@ const Explore = () => {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', minHeight: '80vh' }}>
+    <div className="container" style={{ paddingTop: '16px', paddingBottom: '80px', minHeight: '80vh' }}>
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ marginBottom: '24px', color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500 }}>Katalog Trip</h1>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', background: 'var(--bg-white)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }} className="grid-responsive">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', background: 'var(--bg-white)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }} className="grid-responsive">
           {/* Search Bar */}
           <div style={{ position: 'relative' }}>
             <Search size={20} color="var(--primary)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.7 }} />
@@ -216,20 +231,20 @@ const Explore = () => {
           </motion.div>
 
           {pagination.totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '48px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '48px', flexWrap: 'wrap' }}>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-secondary btn-sm" 
                 disabled={page <= 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 style={{ opacity: page <= 1 ? 0.5 : 1, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}
               >
                 Sebelumnya
               </button>
-              <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500, padding: '0 8px', textAlign: 'center' }}>
                 Halaman {pagination.page} dari {pagination.totalPages} ({pagination.total} trip)
               </span>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-secondary btn-sm" 
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
                 style={{ opacity: page >= pagination.totalPages ? 0.5 : 1, cursor: page >= pagination.totalPages ? 'not-allowed' : 'pointer' }}

@@ -170,7 +170,7 @@ const MyDashboard = () => {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '100px', minHeight: '80vh' }}>
+    <div className="container" style={{ paddingTop: '16px', paddingBottom: '80px', minHeight: '80vh' }}>
       <h1 style={{ color: 'var(--text-main)', fontFamily: 'Cormorant Garamond, serif', fontSize: '2.75rem', fontWeight: 500, marginBottom: '8px' }}>Dashboard Saya</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Kelola tiket, riwayat pembayaran, dan trip impian Anda di sini.</p>
 
@@ -298,7 +298,7 @@ const MyDashboard = () => {
                       {canCancelBooking(b) && (
                         <button 
                           className="btn" 
-                          style={{ padding: '8px 16px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', fontSize: '13px' }} 
+                          style={{ padding: '8px 16px', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', fontSize: '13px' }} 
                           onClick={() => handleCancelBooking(b.id)}
                         >
                           Batalkan
@@ -398,9 +398,9 @@ const MyDashboard = () => {
                         <span>Total Biaya: <strong>Rp {b.totalPrice.toLocaleString()}</strong></span>
                         <span>Total Terbayar: <strong style={{ color: '#16a34a' }}>Rp {verifiedPaid.toLocaleString()}</strong></span>
                         {remainingBalance > 0 ? (
-                          <span>Sisa Pembayaran: <strong style={{ color: '#dc2626' }}>Rp {remainingBalance.toLocaleString()}</strong></span>
+                          <span>Sisa Pembayaran: <strong style={{ color: 'var(--status-danger-text)' }}>Rp {remainingBalance.toLocaleString()}</strong></span>
                         ) : (
-                          <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ LUNAS</span>
+                          <span style={{ color: 'var(--status-success-text)', fontWeight: 600 }}>✓ LUNAS</span>
                         )}
                       </div>
                     </motion.div>
@@ -456,8 +456,9 @@ const MyDashboard = () => {
                       <span style={{
                         fontSize: '12px',
                         fontWeight: 600,
-                        color: remainingPax === 0 ? '#b91c1c' : remainingPax <= 3 ? '#b45309' : '#047857',
-                        background: remainingPax === 0 ? '#fee2e2' : remainingPax <= 3 ? '#fef3c7' : '#d1fae5',
+                        color: remainingPax === 0 ? 'var(--status-danger-text)' : remainingPax <= 3 ? 'var(--status-warning-text)' : 'var(--status-success-text)',
+                        background: remainingPax === 0 ? 'var(--status-danger-bg)' : remainingPax <= 3 ? 'var(--status-warning-bg)' : 'var(--status-success-bg)',
+                        border: '1px solid ' + (remainingPax === 0 ? 'var(--status-danger-border)' : remainingPax <= 3 ? 'var(--status-warning-border)' : 'var(--status-success-border)'),
                         padding: '2px 8px',
                         borderRadius: '12px',
                         display: 'inline-block'

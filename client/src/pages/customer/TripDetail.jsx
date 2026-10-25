@@ -168,7 +168,7 @@ const TripDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px' }}>
+      <div className="container" style={{ paddingTop: '20px', paddingBottom: '60px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ width: '300px' }}>
             <div className="skeleton skeleton-title" style={{ width: '100%' }}></div>
@@ -201,7 +201,7 @@ const TripDetail = () => {
     );
   }
 
-  if (!trip) return <div style={{ paddingTop: '100px', textAlign: 'center' }}>Trip tidak ditemukan</div>;
+  if (!trip) return <div className="container" style={{ paddingTop: '40px', paddingBottom: '60px', textAlign: 'center' }}><h3>Trip tidak ditemukan</h3></div>;
 
   const currentPax = trip.currentPax || 0;
   const isFull = currentPax >= trip.quota;
@@ -219,7 +219,7 @@ const TripDetail = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
       className="container" 
-      style={{ paddingTop: '100px', paddingBottom: '100px' }}
+      style={{ paddingTop: '16px', paddingBottom: '100px' }}
     >
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
@@ -254,13 +254,13 @@ const TripDetail = () => {
               gap: '8px',
               padding: '10px 16px',
               borderRadius: '12px',
-              background: isWishlisted ? '#fee2e2' : 'var(--bg-white)',
-              color: isWishlisted ? '#dc2626' : 'var(--text-main)',
-              border: '1px solid ' + (isWishlisted ? '#fca5a5' : 'var(--border)'),
+              background: isWishlisted ? 'var(--status-danger-bg)' : 'var(--bg-white)',
+              color: isWishlisted ? 'var(--status-danger-text)' : 'var(--text-main)',
+              border: '1px solid ' + (isWishlisted ? 'var(--status-danger-border)' : 'var(--border)'),
               cursor: 'pointer'
             }}
           >
-            <Heart size={18} fill={isWishlisted ? '#dc2626' : 'none'} color={isWishlisted ? '#dc2626' : 'currentColor'} />
+            <Heart size={18} fill={isWishlisted ? 'var(--danger)' : 'none'} color={isWishlisted ? 'var(--danger)' : 'currentColor'} />
             <span style={{ fontSize: '14px', fontWeight: 600 }}>{isWishlisted ? 'Tersimpan' : 'Favorit'}</span>
           </button>
 
@@ -517,7 +517,7 @@ const TripDetail = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <div className="card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
+          <div id="booking-section" className="card" style={{ padding: '24px', position: 'sticky', top: '90px' }}>
             <h3 style={{ marginBottom: '8px' }}>Detail Harga</h3>
             <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary)', marginBottom: '24px' }}>
               Rp {trip.price.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/ pax</span>
@@ -546,10 +546,10 @@ const TripDetail = () => {
                   placeholder="Masukkan kode promo"
                   style={{ textTransform: 'uppercase' }}
                 />
-                <button onClick={validatePromo} className="btn" style={{ background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }}>Pakai</button>
+                <button onClick={validatePromo} className="btn btn-secondary btn-sm">Pakai</button>
               </div>
-              {promoError && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '8px' }}>{promoError}</p>}
-              {appliedPromo && <p style={{ color: '#059669', fontSize: '12px', marginTop: '8px' }}>Promo berhasil digunakan! (-{appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : 'Rp ' + appliedPromo.discountAmount.toLocaleString()})</p>}
+              {promoError && <p style={{ color: 'var(--status-danger-text)', fontSize: '12px', marginTop: '8px', fontWeight: 500 }}>{promoError}</p>}
+              {appliedPromo && <p style={{ color: 'var(--status-success-text)', fontSize: '12px', marginTop: '8px', fontWeight: 500 }}>Promo berhasil digunakan! (-{appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : 'Rp ' + appliedPromo.discountAmount.toLocaleString()})</p>}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingTop: '16px', borderTop: '1px solid var(--border)', fontSize: '14px', color: 'var(--text-muted)' }}>
@@ -619,38 +619,29 @@ const TripDetail = () => {
 
             {bookingMsg.text && (
               <div style={{ 
+                marginTop: '16px',
                 marginBottom: '16px', 
                 padding: '12px', 
                 borderRadius: '8px', 
-                background: bookingMsg.type === 'error' ? '#fee2e2' : '#d1fae5', 
-                color: bookingMsg.type === 'error' ? '#dc2626' : '#059669', 
+                background: bookingMsg.type === 'error' ? 'var(--status-danger-bg)' : 'var(--status-success-bg)', 
+                color: bookingMsg.type === 'error' ? 'var(--status-danger-text)' : 'var(--status-success-text)', 
                 fontSize: '13px', 
                 fontWeight: '600',
-                border: `1px solid ${bookingMsg.type === 'error' ? '#fecaca' : '#34d399'}`
+                border: `1px solid ${bookingMsg.type === 'error' ? 'var(--status-danger-border)' : 'var(--status-success-border)'}`
               }}>
                 {bookingMsg.text}
                 {bookingMsg.incomplete && (
                   <button 
                     onClick={() => navigate('/profile')}
-                    style={{ 
-                      display: 'block', 
-                      marginTop: '10px', 
-                      background: '#dc2626', 
-                      color: 'white', 
-                      padding: '8px 12px', 
-                      borderRadius: '6px', 
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      width: '100%',
-                      textAlign: 'center'
-                    }}
+                    className="btn btn-primary btn-block btn-sm"
+                    style={{ marginTop: '10px' }}
                   >
                     Lengkapi Profil Sekarang
                   </button>
                 )}
               </div>
             )}
-            <p style={{ textAlign: 'center', fontSize: '12px', color: isFull ? '#dc2626' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '400' }}>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: isFull ? 'var(--status-danger-text)' : 'var(--text-muted)', marginTop: '12px', fontWeight: isFull ? '600' : '500' }}>
               {isFull ? 'Maaf, kuota sudah habis terjual!' : `Sisa Kuota: ${remainingSeats} kursi lagi`}
             </p>
           </div>
@@ -887,6 +878,45 @@ const TripDetail = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile Sticky Booking Bar */}
+      <div 
+        className="mobile-only-bar"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid var(--border)',
+          padding: '12px 20px',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 900,
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.1)'
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Mulai dari</div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--accent)' }}>
+            Rp {trip.price.toLocaleString()}
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}> / pax</span>
+          </div>
+        </div>
+        <button 
+          className="btn btn-primary btn-sm"
+          style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)' }}
+          onClick={() => {
+            const el = document.getElementById('booking-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          disabled={isFull}
+        >
+          {isFull ? 'Trip Penuh' : 'Pesan Sekarang'}
+        </button>
+      </div>
     </motion.div>
   );
 };

@@ -50,7 +50,7 @@ const Login = () => {
   };
 
   return (
-    <div style={{ paddingTop: '120px', minHeight: '80vh', display: 'flex', justifyContent: 'center' }}>
+    <div className="container" style={{ paddingTop: '24px', paddingBottom: '60px', minHeight: '80vh', display: 'flex', justifyContent: 'center' }}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '32px', alignSelf: 'flex-start' }}>
         <div style={{ width: '120px', height: '120px', margin: '0 auto 16px auto' }}>
           {loginAnim && <Lottie animationData={loginAnim} loop={true} />}
@@ -63,7 +63,7 @@ const Login = () => {
         </p>
 
         {error && (
-          <div style={{ padding: '12px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+          <div style={{ padding: '12px', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', fontWeight: 500 }}>
             {error}
           </div>
         )}

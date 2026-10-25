@@ -155,21 +155,22 @@ export function ShowcaseCard({
                             top: '16px',
                             right: '16px',
                             zIndex: 25,
-                            width: '36px',
-                            height: '36px',
+                            width: '40px',
+                            height: '40px',
                             borderRadius: '50%',
-                            background: isWishlisted ? '#fee2e2' : 'rgba(255, 255, 255, 0.9)',
-                            backdropFilter: 'blur(4px)',
-                            border: '1px solid ' + (isWishlisted ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)'),
+                            background: isWishlisted ? 'var(--status-danger-bg)' : 'var(--glass-bg)',
+                            backdropFilter: 'blur(8px)',
+                            WebkitBackdropFilter: 'blur(8px)',
+                            border: '1px solid ' + (isWishlisted ? 'var(--status-danger-border)' : 'var(--border)'),
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            boxShadow: 'var(--shadow-sm)',
                             transition: 'all 0.2s ease',
                         }}
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill={isWishlisted ? "#ef4444" : "none"} stroke={isWishlisted ? "#ef4444" : "#64748b"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "var(--danger)" : "none"} stroke={isWishlisted ? "var(--danger)" : "var(--text-muted)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                         </svg>
                     </button>
