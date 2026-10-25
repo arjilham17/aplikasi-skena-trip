@@ -15,6 +15,7 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 const app = express();
+app.set('trust proxy', 'loopback'); // Trust only local Nginx; keeps rate-limit client IP checks valid.
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('FATAL: JWT_SECRET env var tidak diset. Server tidak akan dijalankan di production.');
