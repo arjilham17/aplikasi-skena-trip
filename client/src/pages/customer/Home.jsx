@@ -58,7 +58,7 @@ const Home = () => {
             style={{
               position: 'absolute',
               top: 0, left: 0, right: 0, bottom: 0,
-              background: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("${currentHeroUrl}")`,
+              background: `linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.75) 100%), url("${currentHeroUrl}")`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               zIndex: 1
@@ -66,10 +66,21 @@ const Home = () => {
           />
         </AnimatePresence>
 
+        {/* Contrast overlay vignette for readability */}
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'radial-gradient(circle at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 100%)',
+            zIndex: 2,
+            pointerEvents: 'none'
+          }} 
+        />
+
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }}
-          style={{ position: 'relative', zIndex: 10 }}
+          style={{ position: 'relative', zIndex: 10, maxWidth: '900px', margin: '0 auto', padding: '0 16px' }}
         >
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -79,13 +90,28 @@ const Home = () => {
             </div>
           ) : (
             <>
-              <h1 style={{ fontSize: 'clamp(32px, 8vw, 64px)', marginBottom: '16px', fontWeight: '850' }}>
+              <h1 style={{ 
+                fontSize: 'clamp(32px, 8vw, 64px)', 
+                marginBottom: '16px', 
+                fontWeight: '850', 
+                color: '#ffffff',
+                lineHeight: 1.15,
+                textShadow: '0 2px 6px rgba(0,0,0,0.6), 0 6px 24px rgba(0,0,0,0.85)'
+              }}>
                 {settings?.heroTitle || 'Temukan Petualangan Skena Kamu'}
               </h1>
-              <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', marginBottom: '32px', maxWidth: '800px', margin: '0 auto 32px auto', opacity: 0.9 }}>
+              <p style={{ 
+                fontSize: 'clamp(16px, 2vw, 20px)', 
+                marginBottom: '32px', 
+                maxWidth: '800px', 
+                margin: '0 auto 32px auto', 
+                color: 'rgba(255, 255, 255, 0.95)',
+                lineHeight: 1.6,
+                textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)'
+              }}>
                 {settings?.heroSubtitle || 'Jelajahi destinasi tersembunyi dengan gaya hidup skena yang autentik.'}
               </p>
-              <Link to="/explore" className="btn btn-primary" style={{ padding: '16px 32px', fontSize: '18px' }}>Mulai Eksplorasi <ArrowRight size={20} /></Link>
+              <Link to="/explore" className="btn btn-primary" style={{ padding: '16px 32px', fontSize: '18px', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>Mulai Eksplorasi <ArrowRight size={20} /></Link>
             </>
           )}
         </motion.div>

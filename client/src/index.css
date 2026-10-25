@@ -362,23 +362,43 @@ button { cursor: pointer; border: none; outline: none; font-family: 'Inter', san
 
 /* Print Styles for E-Ticket */
 @media print {
-  body * {
-    visibility: hidden;
+  body > * {
+    visibility: hidden !important;
+  }
+  .ticket-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: auto !important;
   }
   .ticket-print-area, .ticket-print-area * {
-    visibility: visible;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .ticket-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 620px !important;
+    margin: 20px auto !important;
+    padding: 0 !important;
+    border: 1px solid #CBD5E1 !important;
     box-shadow: none !important;
+    background: #FFFFFF !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .no-print {
     display: none !important;
+    visibility: hidden !important;
   }
 }
 

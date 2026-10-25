@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { X, Download, Star, ShoppingBag, Heart, ChevronDown, ChevronUp, CreditCard, ExternalLink, Trash2 } from 'lucide-react';
+import { X, Download, Star, ShoppingBag, Heart, ChevronDown, ChevronUp, CreditCard, ExternalLink, Trash2, CheckCircle2, Printer, Ticket } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import QRCode from 'qrcode';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl } from '../../utils/getImageUrl';
 
@@ -19,6 +20,8 @@ const MyDashboard = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const ticketRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [logoError, setLogoError] = useState(false);
   const [siteSettings, setSiteSettings] = useState(null);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [isLoadingWishlists, setIsLoadingWishlists] = useState(false);
@@ -146,24 +149,72 @@ const MyDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    let isSubscribed = true;
+    if (selectedTicket) {
+      const siteName = (siteSettings?.siteName || 'SKENATRIP').toUpperCase().replace(/\s+/g, '-');
+      const qrData = `${siteName}-BK-${selectedTicket.id.toString().padStart(4, '0')}`;
+      QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#0F172A',
+          light: '#FFFFFF'
+        }
+      })
+        .then(url => {
+          if (isSubscribed) setQrCodeDataUrl(url);
+        })
+        .catch(err => {
+          console.error('QR code generation error:', err);
+          if (isSubscribed) setQrCodeDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrData)}`);
+        });
+    }
+    return () => {
+      isSubscribed = false;
+    };
+  }, [selectedTicket, siteSettings]);
+
+  const handlePrintTicket = () => {
+    try {
+      window.print();
+    } catch (err) {
+      console.error('Print failed:', err);
+      handleDownloadTicket();
+    }
+  };
+
   const handleDownloadTicket = async () => {
     if (!ticketRef.current) return;
     setDownloading(true);
     try {
+      // Ensure pending rendering and fonts settle
+      await new Promise(resolve => setTimeout(resolve, 150));
+
       const canvas = await html2canvas(ticketRef.current, {
-        scale: 2, // Higher quality
+        scale: 2, // 2x high resolution for retina/print crispness
         useCORS: true,
-        backgroundColor: '#ffffff'
+        allowTaint: false,
+        logging: false,
+        backgroundColor: '#FFFFFF',
+        ignoreElements: (element) => element?.classList?.contains('no-print')
       });
+
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.href = image;
-      const fileName = siteSettings?.siteName?.replace(/\s+/g, '-') || 'SkenaTrip';
+      const fileName = (siteSettings?.siteName || 'SkenaTrip').replace(/\s+/g, '-');
       link.download = `E-Ticket-${fileName}-${selectedTicket.id}.png`;
+      document.body.appendChild(link);
       link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 200);
     } catch (err) {
       console.error('Gagal mengunduh tiket:', err);
-      alert('Gagal mengunduh tiket. Silakan coba lagi.');
+      alert('Gagal mengunduh gambar tiket. Gunakan tombol Cetak atau coba beberapa saat lagi.');
     } finally {
       setDownloading(false);
     }
@@ -284,7 +335,7 @@ const MyDashboard = () => {
                     )}
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       {b.status === 'confirmed' && (
-                        <button className="btn btn-primary" style={{ padding: '8px 16px' }} onClick={() => setSelectedTicket(b)}>Lihat E-Ticket</button>
+                        <button className="btn btn-primary" style={{ padding: '8px 16px' }} onClick={() => { setLogoError(false); setSelectedTicket(b); }}>Lihat E-Ticket</button>
                       )}
                       {b.status === 'confirmed' && (
                         <button 
@@ -588,74 +639,183 @@ const MyDashboard = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="no-print" 
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px' }}
+            className="ticket-modal-overlay" 
+            style={{ 
+              position: 'fixed', 
+              top: 0, left: 0, right: 0, bottom: 0, 
+              background: 'rgba(0,0,0,0.8)', 
+              backdropFilter: 'blur(8px)', 
+              zIndex: 1000, 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              padding: '16px',
+              overflowY: 'auto'
+            }}
           >
             <motion.div 
-              initial={{ y: 50, opacity: 0 }}
+              initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 50, opacity: 0 }}
-              ref={ticketRef} 
-              className="ticket-print-area card" 
-              style={{ width: '100%', maxWidth: '600px', background: 'white', position: 'relative', overflow: 'hidden', boxShadow: 'none' }}
+              exit={{ y: 40, opacity: 0 }}
+              style={{ width: '100%', maxWidth: '580px', margin: 'auto' }}
             >
-            {/* Ticket Header */}
-            <div style={{ background: 'var(--primary)', color: 'white', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img 
-                  src={siteSettings?.logoUrl ? getImageUrl(siteSettings.logoUrl) : "/logo.jpg"} 
-                  alt="Logo" 
-                  style={{ height: '40px', background: 'white', borderRadius: '4px', padding: '4px', minWidth: '40px', objectFit: 'contain' }} 
-                />
-                <h2 style={{ margin: 0 }}>E-Ticket {siteSettings?.siteName || 'Skena Trip'}</h2>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ margin: 0, fontSize: '14px', opacity: 0.8 }}>Booking ID</p>
-                <h3 style={{ margin: 0 }}>#BK-{selectedTicket.id.toString().padStart(4, '0')}</h3>
-              </div>
-            </div>
+              {/* Clean printable & downloadable ticket */}
+              <div 
+                ref={ticketRef} 
+                className="ticket-print-area" 
+                style={{ 
+                  width: '100%', 
+                  background: '#FFFFFF', 
+                  color: '#0F172A',
+                  borderRadius: '16px', 
+                  border: '1px solid #E2E8F0', 
+                  position: 'relative', 
+                  overflow: 'hidden', 
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+                }}
+              >
+                {/* Ticket Header */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #0D2319 0%, #153326 50%, #1E4634 100%)', 
+                  color: '#FFFFFF', 
+                  padding: '24px 28px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    {logoError || (!siteSettings?.logoUrl) ? (
+                      <div style={{ height: '42px', width: '42px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#86EFAC', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <Ticket size={24} />
+                      </div>
+                    ) : (
+                      <img 
+                        src={getImageUrl(siteSettings.logoUrl)} 
+                        alt="Logo" 
+                        crossOrigin="anonymous"
+                        onError={() => setLogoError(true)}
+                        style={{ 
+                          height: '42px', 
+                          width: '42px',
+                          background: '#FFFFFF', 
+                          borderRadius: '8px', 
+                          padding: '4px', 
+                          objectFit: 'contain',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                        }} 
+                      />
+                    )}
+                    <div>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#86EFAC', fontWeight: 700 }}>
+                        Official Boarding Pass
+                      </div>
+                      <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.2px' }}>
+                        E-Ticket {siteSettings?.siteName || 'Skena Trip'}
+                      </h2>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.75)', fontWeight: 600 }}>Booking ID</p>
+                    <h3 style={{ margin: '2px 0 0 0', fontFamily: 'monospace', fontSize: '19px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.5px' }}>
+                      #BK-{selectedTicket.id.toString().padStart(4, '0')}
+                    </h3>
+                  </div>
+                </div>
 
-            {/* Ticket Body */}
-            <div style={{ padding: '32px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-                <div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Nama Pelanggan</p>
-                  <p style={{ fontWeight: '600', fontSize: '18px', color: '#0f172a' }}>{JSON.parse(localStorage.getItem('user'))?.name}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Destinasi</p>
-                  <p style={{ fontWeight: '600', fontSize: '18px', color: '#0f172a' }}>{selectedTicket.trip.title}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Tanggal Perjalanan</p>
-                  <p style={{ fontWeight: '600', color: '#0f172a' }}>{new Date(selectedTicket.trip.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Durasi & Pax</p>
-                  <p style={{ fontWeight: '600', color: '#0f172a' }}>{selectedTicket.trip.duration} &bull; {selectedTicket.pax} Orang</p>
+                {/* Ticket Body */}
+                <div style={{ padding: '28px', background: '#FFFFFF' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '20px 24px', marginBottom: '24px' }}>
+                    <div>
+                      <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', fontWeight: 600, marginBottom: '4px' }}>Nama Pelanggan</p>
+                      <p style={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', margin: 0, wordBreak: 'break-word' }}>
+                        {JSON.parse(localStorage.getItem('user'))?.name || selectedTicket.user?.name || 'Pelanggan'}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', fontWeight: 600, marginBottom: '4px' }}>Destinasi Trip</p>
+                      <p style={{ fontWeight: 700, fontSize: '17px', color: '#0F172A', margin: 0, wordBreak: 'break-word' }}>
+                        {selectedTicket.trip.title}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', fontWeight: 600, marginBottom: '4px' }}>Tanggal Perjalanan</p>
+                      <p style={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', margin: 0 }}>
+                        {new Date(selectedTicket.trip.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', fontWeight: 600, marginBottom: '4px' }}>Durasi & Kuota Pax</p>
+                      <p style={{ fontWeight: 700, fontSize: '15px', color: '#0F172A', margin: 0 }}>
+                        {selectedTicket.trip.duration} &bull; {selectedTicket.pax} Orang
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div style={{ borderTop: '2px dashed #CBD5E1', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 200px' }}>
+                      <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B', fontWeight: 600, marginBottom: '6px' }}>Status Pembayaran</p>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC', padding: '6px 14px', borderRadius: '9999px', fontWeight: 700, fontSize: '13px' }}>
+                        <CheckCircle2 size={16} /> LUNAS &bull; TERKONFIRMASI
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#64748B', margin: '8px 0 0 0', lineHeight: 1.4 }}>
+                        Tunjukkan e-ticket ini kepada tour leader saat keberangkatan.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                      <div style={{ background: '#FFFFFF', padding: '6px', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                        {qrCodeDataUrl ? (
+                          <img 
+                            src={qrCodeDataUrl} 
+                            alt="QR Code" 
+                            style={{ width: '84px', height: '84px', display: 'block' }} 
+                          />
+                        ) : (
+                          <div style={{ width: '84px', height: '84px', background: '#F1F5F9', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#64748B' }}>
+                            Memuat QR...
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, letterSpacing: '0.5px' }}>VALID TICKET</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div style={{ borderTop: '2px dashed var(--border)', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Status Pembayaran</p>
-                  <h3 style={{ color: 'var(--primary)', margin: 0 }}>LUNAS</h3>
+
+              {/* Action Buttons: outside ticketRef with no-print */}
+              <div className="no-print" style={{ marginTop: '16px', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+                <button 
+                  type="button"
+                  onClick={() => setSelectedTicket(null)} 
+                  className="btn" 
+                  style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', color: '#334155', fontWeight: 600, padding: '10px 18px', borderRadius: '8px' }}
+                >
+                  Tutup
+                </button>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button"
+                    onClick={handlePrintTicket} 
+                    className="btn" 
+                    style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', color: '#0F172A', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Printer size={16} /> Cetak
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleDownloadTicket} 
+                    className="btn btn-primary" 
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, background: '#153326', color: '#FFFFFF', border: 'none' }} 
+                    disabled={downloading}
+                  >
+                    {downloading ? 'Mengunduh...' : <><Download size={18}/> Unduh Tiket (.png)</>}
+                  </button>
                 </div>
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${(siteSettings?.siteName || 'SKENATRIP').toUpperCase().replace(/\s+/g, '-')}-BK-${selectedTicket.id}`} alt="QR Code" style={{ width: '80px', height: '80px' }} />
               </div>
-            </div>
-            
-            {/* Action Buttons (Hidden on Print) */}
-            <div className="no-print" style={{ padding: '16px 32px', background: 'var(--bg-light)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-              <button onClick={() => setSelectedTicket(null)} className="btn" style={{ background: 'transparent', color: 'var(--text-muted)' }}>Tutup</button>
-              <button onClick={handleDownloadTicket} className="btn btn-accent" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} disabled={downloading}>
-                {downloading ? 'Mengunduh...' : <><Download size={18}/> Unduh Tiket (.png)</>}
-              </button>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
 
       {/* Review Modal */}
       <AnimatePresence>
