@@ -95,6 +95,7 @@ model PromoCode {
   discountAmount  Float
   discountType    String   @default("flat") // "flat" or "percentage"
   isActive        Boolean  @default(true)
+  expiresAt       DateTime?
   createdAt       DateTime @default(now())
 }
 

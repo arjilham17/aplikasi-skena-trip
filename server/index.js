@@ -15,7 +15,12 @@ const fs = require('fs');
 
 const prisma = new PrismaClient();
 const app = express();
-const JWT_SECRET = process.env.JWT_SECRET || 'skena-trip-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET env var tidak diset. Server tidak akan dijalankan di production.');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+const _JWT_SECRET = JWT_SECRET || 'skena-trip-secret-key-dev-only';
 
 // ── Pastikan folder uploads tersedia (Penting untuk Deployment) ───────────────
 const uploadDir = path.join(__dirname, 'uploads');
@@ -91,7 +96,7 @@ const authenticateToken = (req, res, next) => {
   
   if (!token) return res.status(401).json({ error: 'Akses ditolak. Token tidak ditemukan.' });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, _JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Token tidak valid.' });
     req.user = user;
     next();
@@ -193,7 +198,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     const sessionToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      _JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -530,6 +535,18 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
 
     const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) } });
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+    // Cegah booking duplikat — user tidak boleh punya booking aktif untuk trip yang sama
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        userId,
+        tripId: parseInt(tripId),
+        status: { in: ['pending', 'confirmed'] }
+      }
+    });
+    if (existingBooking) {
+      return res.status(400).json({ error: 'Anda sudah memiliki pesanan aktif untuk trip ini.' });
+    }
     
     // Check quota
     const totalBooked = await prisma.booking.aggregate({
@@ -557,7 +574,7 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
 
     if (promoCode) {
       const promo = await prisma.promoCode.findUnique({ where: { code: promoCode.toUpperCase() } });
-      if (promo && promo.isActive) {
+      if (promo && promo.isActive && !(promo.expiresAt && new Date() > promo.expiresAt)) {
         const discount = promo.discountType === 'percentage' 
           ? Math.round(totalPrice * (promo.discountAmount / 100)) 
           : Math.round(promo.discountAmount);
@@ -827,9 +844,14 @@ app.get('/api/promos', authenticateToken, isAdmin, async (req, res) => {
 
 app.post('/api/promos', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { code, discountAmount, discountType } = req.body;
+    const { code, discountAmount, discountType, expiresAt } = req.body;
     const promo = await prisma.promoCode.create({
-      data: { code: code.toUpperCase(), discountAmount: parseFloat(discountAmount), discountType: discountType || 'flat' }
+      data: {
+        code: code.toUpperCase(),
+        discountAmount: parseFloat(discountAmount),
+        discountType: discountType || 'flat',
+        expiresAt: expiresAt ? new Date(expiresAt) : null
+      }
     });
     await createActivityLog(req.user.userId, 'CREATE_PROMO', `Admin membuat kode promo baru: ${promo.code}`);
     res.status(201).json(promo);
@@ -872,6 +894,9 @@ app.post('/api/promos/validate', async (req, res) => {
     const promo = await prisma.promoCode.findUnique({ where: { code: code.toUpperCase() } });
     if (!promo) return res.status(404).json({ error: 'Kode promo tidak ditemukan' });
     if (!promo.isActive) return res.status(400).json({ error: 'Kode promo sudah tidak aktif' });
+    if (promo.expiresAt && new Date() > promo.expiresAt) {
+      return res.status(400).json({ error: 'Kode promo sudah kedaluwarsa' });
+    }
     
     res.json({ discountAmount: promo.discountAmount, discountType: promo.discountType });
   } catch (error) { res.status(500).json({ error: error.message }); }
