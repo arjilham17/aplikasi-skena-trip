@@ -359,23 +359,122 @@ app.put('/api/users/change-password', authenticateToken, async (req, res) => {
 
 app.get('/api/trips', async (req, res) => {
   try {
+    const { 
+      page, 
+      limit, 
+      search, 
+      destination, 
+      minPrice, 
+      maxPrice, 
+      startDate, 
+      endDate, 
+      sortBy = 'newest' 
+    } = req.query;
+
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { destination: { contains: search } },
+        { description: { contains: search } }
+      ];
+    }
+
+    if (destination) {
+      where.destination = { contains: destination };
+    }
+
+    if (minPrice || maxPrice) {
+      where.price = {};
+      if (minPrice) where.price.gte = parseFloat(minPrice);
+      if (maxPrice) where.price.lte = parseFloat(maxPrice);
+    }
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate) where.date.lte = new Date(endDate);
+    }
+
+    let orderBy = { createdAt: 'desc' };
+    if (sortBy === 'price-low' || sortBy === 'price_asc') orderBy = { price: 'asc' };
+    else if (sortBy === 'price-high' || sortBy === 'price_desc') orderBy = { price: 'desc' };
+    else if (sortBy === 'date-near' || sortBy === 'date_asc') orderBy = { date: 'asc' };
+    else if (sortBy === 'newest') orderBy = { createdAt: 'desc' };
+
+    const isPaginated = page !== undefined || limit !== undefined;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, parseInt(limit) || 9);
+
+    if (isPaginated && sortBy !== 'popular') {
+      const total = await prisma.trip.count({ where });
+      const trips = await prisma.trip.findMany({
+        where,
+        include: {
+          bookings: {
+            where: { status: { in: ['pending', 'confirmed'] } },
+            select: { pax: true }
+          }
+        },
+        orderBy,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum
+      });
+
+      const data = trips.map(trip => {
+        const currentPax = trip.bookings.reduce((sum, b) => sum + b.pax, 0);
+        const { bookings, ...tripData } = trip;
+        return { ...tripData, currentPax };
+      });
+
+      return res.json({
+        data,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      });
+    }
+
     const trips = await prisma.trip.findMany({ 
+      where,
       include: {
         bookings: {
           where: { status: { in: ['pending', 'confirmed'] } },
           select: { pax: true }
         }
       },
-      orderBy: { createdAt: 'desc' } 
+      orderBy: sortBy === 'popular' ? undefined : orderBy 
     });
 
-    const tripsWithPax = trips.map(trip => {
+    let data = trips.map(trip => {
       const currentPax = trip.bookings.reduce((sum, b) => sum + b.pax, 0);
       const { bookings, ...tripData } = trip;
       return { ...tripData, currentPax };
     });
 
-    res.json(tripsWithPax);
+    if (sortBy === 'popular') {
+      data.sort((a, b) => (b.currentPax || 0) - (a.currentPax || 0));
+    }
+
+    if (isPaginated) {
+      const total = data.length;
+      const paginatedData = data.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+      return res.json({
+        data: paginatedData,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      });
+    }
+
+    res.json(data);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -639,11 +738,96 @@ app.put('/api/bookings/:id/status', authenticateToken, isAdmin, async (req, res)
     const { status } = req.body; 
     const booking = await prisma.booking.update({
       where: { id: parseInt(req.params.id) },
-      data: { status }
+      data: { status },
+      include: { user: true, trip: true }
     });
     await createActivityLog(req.user.userId, 'UPDATE_BOOKING_STATUS', `Admin mengubah status pesanan #${booking.id} menjadi ${status.toUpperCase()}`);
+
+    // Email notifikasi ke customer saat status berubah
+    if (booking.user?.email && process.env.SMTP_USER) {
+      const statusLabel = status === 'confirmed' ? 'Dikonfirmasi' : status === 'cancelled' ? 'Dibatalkan' : status;
+      const statusColor = status === 'confirmed' ? '#16a34a' : status === 'cancelled' ? '#dc2626' : '#2563eb';
+      transporter.sendMail({
+        from: `"Skena Trip" <${process.env.SMTP_USER}>`,
+        to: booking.user.email,
+        subject: `Update Status Pemesanan #${booking.id} - ${statusLabel}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+            <h2 style="color:#0f172a;margin-top:0">Update Pemesanan Skena Trip</h2>
+            <p>Halo <strong>${booking.user.name}</strong>,</p>
+            <p>Status pesanan Anda untuk trip <strong>${booking.trip?.title || 'Trip'}</strong> telah diperbarui menjadi:</p>
+            <p style="font-size:18px;font-weight:bold;color:${statusColor}">${statusLabel.toUpperCase()}</p>
+            <p style="color:#64748b;font-size:14px">Silakan masuk ke dashboard akun Anda untuk melihat rincian pemesanan.</p>
+          </div>
+        `
+      }).catch(err => console.error('[EMAIL NOTIF FAILED]', err.message));
+    }
+
     res.json(booking);
   } catch (error) { res.status(400).json({ error: error.message }); }
+});
+
+// Customer Cancel Booking (Batas minimal H-3 sebelum keberangkatan)
+app.put('/api/bookings/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { trip: true, user: true }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
+    }
+
+    if (booking.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'Anda tidak berwenang membatalkan pesanan ini.' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ error: 'Pesanan ini sudah dibatalkan sebelumnya.' });
+    }
+
+    // Batas waktu: minimal 3 hari (72 jam) sebelum tanggal trip
+    const tripDate = new Date(booking.trip.date);
+    const now = new Date();
+    const diffHours = (tripDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (diffHours < 72) {
+      return res.status(400).json({ 
+        error: 'Pembatalan mandiri hanya dapat dilakukan minimal 3 hari (H-3) sebelum jadwal keberangkatan. Silakan hubungi admin.' 
+      });
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'cancelled' }
+    });
+
+    await createActivityLog(req.user.userId, 'CANCEL_BOOKING', `Customer membatalkan pesanan #${booking.id} (${booking.trip.title})`);
+    await createAdminNotification('BOOKING_CANCELLED', `Pesanan #${booking.id} untuk trip "${booking.trip.title}" telah dibatalkan oleh customer ${booking.user.name}.`);
+
+    // Kirim email konfirmasi pembatalan ke customer
+    if (booking.user?.email && process.env.SMTP_USER) {
+      transporter.sendMail({
+        from: `"Skena Trip" <${process.env.SMTP_USER}>`,
+        to: booking.user.email,
+        subject: `Pembatalan Pemesanan #${booking.id} Berhasil`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0">
+            <h2 style="color:#0f172a;margin-top:0">Pembatalan Pemesanan Berhasil</h2>
+            <p>Halo <strong>${booking.user.name}</strong>,</p>
+            <p>Pesanan Anda untuk trip <strong>${booking.trip.title}</strong> telah berhasil dibatalkan.</p>
+            <p style="color:#64748b;font-size:14px">Jika ada pertanyaan atau permohonan pengembalian dana, silakan hubungi customer service kami.</p>
+          </div>
+        `
+      }).catch(err => console.error('[EMAIL NOTIF FAILED]', err.message));
+    }
+
+    res.json({ message: 'Pesanan berhasil dibatalkan.', booking: updatedBooking });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.delete('/api/bookings/:id', authenticateToken, isSuperAdmin, async (req, res) => {

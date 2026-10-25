@@ -17,25 +17,52 @@ const Explore = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest'); // newest, price-low, date-near, popular
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 9, total: 0, totalPages: 1 });
 
   useEffect(() => {
-    api.get('/trips')
-      .then(res => setTrips(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+    let isMounted = true;
+    const timeout = setTimeout(() => {
+      setLoading(true);
+      api.get('/trips', {
+        params: {
+          page,
+          limit: 9,
+          search: searchTerm.trim() || undefined,
+          sortBy
+        }
+      })
+        .then(res => {
+          if (!isMounted) return;
+          if (res.data?.data && res.data?.pagination) {
+            setTrips(res.data.data);
+            setPagination(res.data.pagination);
+          } else if (Array.isArray(res.data)) {
+            setTrips(res.data);
+            setPagination({ page: 1, limit: res.data.length, total: res.data.length, totalPages: 1 });
+          }
+        })
+        .catch(console.error)
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    }, 300);
 
-  const filteredAndSortedTrips = trips
-    .filter(trip => {
-      return trip.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             trip.destination.toLowerCase().includes(searchTerm.toLowerCase());
-    })
-    .sort((a, b) => {
-      if (sortBy === 'price-low') return a.price - b.price;
-      if (sortBy === 'date-near') return new Date(a.date) - new Date(b.date);
-      if (sortBy === 'popular') return (b.currentPax || 0) - (a.currentPax || 0);
-      return new Date(b.createdAt) - new Date(a.createdAt); // newest
-    });
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
+  }, [page, searchTerm, sortBy]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(1);
+  };
+
+  const handleSortChange = (e) => {
+    setSortBy(e.target.value);
+    setPage(1);
+  };
 
   return (
     <div className="container" style={{ paddingTop: '100px', paddingBottom: '100px', minHeight: '80vh' }}>
@@ -51,7 +78,7 @@ const Explore = () => {
               className="input" 
               style={{ paddingLeft: '48px', width: '100%', borderRadius: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
 
@@ -62,7 +89,7 @@ const Explore = () => {
               className="input" 
               style={{ paddingLeft: '40px', borderRadius: '12px', background: 'var(--bg-light)', border: '1px solid var(--border)', color: 'var(--text-main)', width: '100%' }}
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={handleSortChange}
             >
               <option value="newest">Terbaru</option>
               <option value="price-low">Harga Termurah</option>
@@ -90,7 +117,7 @@ const Explore = () => {
             </div>
           ))}
         </div>
-      ) : filteredAndSortedTrips.length === 0 ? (
+      ) : trips.length === 0 ? (
         <div className="empty-state">
           <div style={{ width: '250px', height: '250px', margin: '0 auto' }}>
             <Lottie 
@@ -102,46 +129,72 @@ const Explore = () => {
           <p style={{ maxWidth: '400px', margin: '0 auto' }}>
             Kami tidak menemukan perjalanan yang cocok dengan pencarian atau filter Anda. Coba gunakan kata kunci lain.
           </p>
-          <button className="btn btn-primary" onClick={() => { setSearchTerm(''); setSortBy('newest'); }}>
+          <button className="btn btn-primary" onClick={() => { setSearchTerm(''); setSortBy('newest'); setPage(1); }}>
             Reset Pencarian
           </button>
         </div>
       ) : (
-        <motion.div 
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: {
-                staggerChildren: 0.1
+        <>
+          <motion.div 
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
               }
-            }
-          }}
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}
-        >
-          {filteredAndSortedTrips.map(trip => (
-            <motion.div 
-              key={trip.id} 
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                show: { opacity: 1, y: 0 }
-              }}
-            >
-              <ShowcaseCard
-                tagline={`${trip.duration} | ${trip.currentPax}/${trip.quota} Pax`}
-                heading={trip.title}
-                description={trip.destination}
-                imageUrl={trip.image ? getImageUrl(trip.image) : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"}
-                ctaText={`Detail Rp ${trip.price.toLocaleString()}`}
-                onCtaClick={() => navigate(`/trip/${trip.id}`)}
-                brandName={new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}
-                services={trip.currentPax >= trip.quota ? ["PENUH"] : ["TERSEDIA"]}
-              />
-            </motion.div>
-          ))}
-        </motion.div>
+            }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}
+          >
+            {trips.map(trip => (
+              <motion.div 
+                key={trip.id} 
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 }
+                }}
+              >
+                <ShowcaseCard
+                  tagline={`${trip.duration} | ${trip.currentPax}/${trip.quota} Pax`}
+                  heading={trip.title}
+                  description={trip.destination}
+                  imageUrl={trip.image ? getImageUrl(trip.image) : "https://images.unsplash.com/photo-1518182170546-076616fd628a?auto=format&fit=crop&q=80&w=800"}
+                  ctaText={`Detail Rp ${trip.price.toLocaleString()}`}
+                  onCtaClick={() => navigate(`/trip/${trip.id}`)}
+                  brandName={new Date(trip.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}
+                  services={trip.currentPax >= trip.quota ? ["PENUH"] : ["TERSEDIA"]}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {pagination.totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '48px' }}>
+              <button 
+                className="btn btn-secondary" 
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                style={{ opacity: page <= 1 ? 0.5 : 1, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Sebelumnya
+              </button>
+              <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>
+                Halaman {pagination.page} dari {pagination.totalPages} ({pagination.total} trip)
+              </span>
+              <button 
+                className="btn btn-secondary" 
+                disabled={page >= pagination.totalPages}
+                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                style={{ opacity: page >= pagination.totalPages ? 0.5 : 1, cursor: page >= pagination.totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

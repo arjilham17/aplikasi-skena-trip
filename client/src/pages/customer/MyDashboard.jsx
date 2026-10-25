@@ -98,6 +98,26 @@ const MyDashboard = () => {
     }
   };
 
+  const [nowTimestamp] = useState(() => Date.now());
+
+  const canCancelBooking = (booking) => {
+    if (booking.status !== 'pending' && booking.status !== 'confirmed') return false;
+    if (!booking.trip?.date) return false;
+    const diffHours = (new Date(booking.trip.date).getTime() - nowTimestamp) / (1000 * 60 * 60);
+    return diffHours >= 72;
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan pesanan ini? Pembatalan mandiri hanya berlaku minimal H-3 keberangkatan dan tidak dapat diubah kembali.')) return;
+    try {
+      await api.put(`/bookings/${bookingId}/cancel`);
+      alert('Pesanan berhasil dibatalkan.');
+      fetchBookings();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Gagal membatalkan pesanan.');
+    }
+  };
+
   const handleDownloadTicket = async () => {
     if (!ticketRef.current) return;
     setDownloading(true);
@@ -180,7 +200,7 @@ const MyDashboard = () => {
                       Bayar Sekarang
                     </button>
                   )}
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     {b.status === 'confirmed' && (
                       <button className="btn btn-primary" style={{ padding: '8px 16px' }} onClick={() => setSelectedTicket(b)}>Lihat E-Ticket</button>
                     )}
@@ -191,6 +211,15 @@ const MyDashboard = () => {
                         onClick={() => { setReviewTripId(b.tripId); setShowReviewModal(true); }}
                       >
                         Beri Ulasan
+                      </button>
+                    )}
+                    {canCancelBooking(b) && (
+                      <button 
+                        className="btn" 
+                        style={{ padding: '8px 16px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', fontSize: '13px' }} 
+                        onClick={() => handleCancelBooking(b.id)}
+                      >
+                        Batalkan
                       </button>
                     )}
                   </div>
