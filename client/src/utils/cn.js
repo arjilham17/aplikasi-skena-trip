@@ -1,3 +1,1 @@
-export function cn(...inputs) {
-  return inputs.filter(Boolean).join(' ');
-}
+export const cn = (...inputs) => inputs.flat(Infinity).filter(Boolean).join(' ');

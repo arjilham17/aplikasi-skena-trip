@@ -82,11 +82,22 @@ const authLimiter = rateLimit({
 });
 
 // Konfigurasi Multer
+const allowedImageExts = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname).toLowerCase())
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype) && allowedImageExts.has(ext)) {
+      return cb(null, true);
+    }
+    cb(new Error('Hanya file gambar (JPG, PNG, WEBP) maksimal 5MB yang diizinkan.'));
+  }
+});
 
 // ==========================================
 // MIDDLEWARES
@@ -619,10 +630,16 @@ app.post('/api/trips/:id/duplicate', authenticateToken, isAdmin, async (req, res
 // BOOKINGS API
 // ==========================================
 
+const safeUserSelect = { id: true, name: true, email: true, whatsapp: true, gender: true };
+
 app.post('/api/bookings', authenticateToken, async (req, res) => {
   try {
     const { tripId, pax, promoCode } = req.body;
     const userId = req.user.userId; // Get from JWT
+    const requestedPax = parseInt(pax);
+    if (!(requestedPax > 0)) {
+      return res.status(400).json({ error: 'Jumlah peserta (pax) tidak valid.' });
+    }
     
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.address || !user.whatsapp || !user.gender || !user.name) {
@@ -633,66 +650,68 @@ app.post('/api/bookings', authenticateToken, async (req, res) => {
       });
     }
 
-    const trip = await prisma.trip.findUnique({ where: { id: parseInt(tripId) } });
+    const parsedTripId = parseInt(tripId);
+    const trip = await prisma.trip.findUnique({ where: { id: parsedTripId } });
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
-    // Cegah booking duplikat — user tidak boleh punya booking aktif untuk trip yang sama
-    const existingBooking = await prisma.booking.findFirst({
-      where: {
-        userId,
-        tripId: parseInt(tripId),
-        status: { in: ['pending', 'confirmed'] }
-      }
-    });
-    if (existingBooking) {
-      return res.status(400).json({ error: 'Anda sudah memiliki pesanan aktif untuk trip ini.' });
-    }
-    
-    // Check quota
-    const totalBooked = await prisma.booking.aggregate({
-      where: {
-        tripId: parseInt(tripId),
-        status: { in: ['pending', 'confirmed'] }
-      },
-      _sum: { pax: true }
-    });
-    
-    const currentPax = totalBooked._sum.pax || 0;
-    const requestedPax = parseInt(pax);
-
-    if (currentPax + requestedPax > trip.quota) {
-      const remaining = trip.quota - currentPax;
-      return res.status(400).json({ 
-        error: remaining <= 0 
-          ? 'Mohon maaf, kuota trip ini sudah habis.' 
-          : `Kuota tidak mencukupi. Sisa kuota yang tersedia hanya ${remaining} seat.` 
+    const booking = await prisma.$transaction(async (tx) => {
+      // Cegah booking duplikat — user tidak boleh punya booking aktif untuk trip yang sama
+      const existingBooking = await tx.booking.findFirst({
+        where: {
+          userId,
+          tripId: parsedTripId,
+          status: { in: ['pending', 'confirmed'] }
+        }
       });
-    }
-
-    let totalPrice = trip.price * requestedPax;
-    let appliedPromo = null;
-
-    if (promoCode) {
-      const promo = await prisma.promoCode.findUnique({ where: { code: promoCode.toUpperCase() } });
-      if (promo && promo.isActive && !(promo.expiresAt && new Date() > promo.expiresAt)) {
-        const discount = promo.discountType === 'percentage' 
-          ? Math.round(totalPrice * (promo.discountAmount / 100)) 
-          : Math.round(promo.discountAmount);
-        totalPrice = Math.max(0, Math.round(totalPrice - discount));
-        appliedPromo = promo.code;
+      if (existingBooking) {
+        throw new Error('Anda sudah memiliki pesanan aktif untuk trip ini.');
       }
-    }
 
-    const booking = await prisma.booking.create({
-      data: {
-        userId: userId,
-        tripId: parseInt(tripId),
-        pax: parseInt(pax),
-        totalPrice,
-        promoCode: appliedPromo,
-        status: 'pending'
+      // Check quota
+      const totalBooked = await tx.booking.aggregate({
+        where: {
+          tripId: parsedTripId,
+          status: { in: ['pending', 'confirmed'] }
+        },
+        _sum: { pax: true }
+      });
+
+      const currentPax = totalBooked._sum.pax || 0;
+      if (currentPax + requestedPax > trip.quota) {
+        const remaining = trip.quota - currentPax;
+        throw new Error(
+          remaining <= 0
+            ? 'Mohon maaf, kuota trip ini sudah habis.'
+            : `Kuota tidak mencukupi. Sisa kuota yang tersedia hanya ${remaining} seat.`
+        );
       }
-    });
+
+      let totalPrice = trip.price * requestedPax;
+      let appliedPromo = null;
+
+      if (promoCode) {
+        const promo = await tx.promoCode.findUnique({ where: { code: promoCode.toUpperCase() } });
+        if (promo && promo.isActive && !(promo.expiresAt && new Date() > promo.expiresAt)) {
+          const discount = promo.discountType === 'percentage'
+            ? Math.round(totalPrice * (promo.discountAmount / 100))
+            : Math.round(promo.discountAmount);
+          totalPrice = Math.max(0, Math.round(totalPrice - discount));
+          appliedPromo = promo.code;
+        }
+      }
+
+      return tx.booking.create({
+        data: {
+          userId,
+          tripId: parsedTripId,
+          pax: requestedPax,
+          totalPrice,
+          promoCode: appliedPromo,
+          status: 'pending'
+        }
+      });
+    }, { isolationLevel: 'Serializable' });
+
     res.status(201).json(booking);
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
@@ -717,7 +736,7 @@ app.get('/api/my-bookings', authenticateToken, async (req, res) => {
 app.get('/api/bookings', authenticateToken, isAdmin, async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({
-      include: { user: true, trip: true, payments: true },
+      include: { user: { select: safeUserSelect }, trip: true, payments: true },
       orderBy: { createdAt: 'desc' }
     });
     res.json(bookings);
@@ -736,11 +755,14 @@ app.get('/api/bookings/pending-count', authenticateToken, isAdmin, async (req, r
 
 app.put('/api/bookings/:id/status', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { status } = req.body; 
+    const { status } = req.body;
+    if (!['pending', 'confirmed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Status pemesanan tidak valid.' });
+    }
     const booking = await prisma.booking.update({
       where: { id: parseInt(req.params.id) },
       data: { status },
-      include: { user: true, trip: true }
+      include: { user: { select: safeUserSelect }, trip: true }
     });
     await createActivityLog(req.user.userId, 'UPDATE_BOOKING_STATUS', `Admin mengubah status pesanan #${booking.id} menjadi ${status.toUpperCase()}`);
 
@@ -774,7 +796,7 @@ app.put('/api/bookings/:id/cancel', authenticateToken, async (req, res) => {
     const bookingId = parseInt(req.params.id);
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { trip: true, user: true }
+      include: { trip: true, user: { select: safeUserSelect } }
     });
 
     if (!booking) {
@@ -938,11 +960,14 @@ app.post('/api/wishlist/:tripId', authenticateToken, async (req, res) => {
 app.post('/api/payments', authenticateToken, upload.single('proofFile'), async (req, res) => {
   try {
     const { bookingId, amount, method } = req.body;
+    const amountVal = parseFloat(amount);
+    if (!(amountVal > 0)) return res.status(400).json({ error: 'Nominal pembayaran tidak valid' });
     
     // Validate booking belongs to user
     const booking = await prisma.booking.findUnique({ where: { id: parseInt(bookingId) } });
     if (!booking) return res.status(404).json({error: 'Booking not found'});
     if (booking.userId !== req.user.userId) return res.status(403).json({error: 'Forbidden'});
+    if (booking.status !== 'pending') return res.status(400).json({ error: 'Hanya pesanan berstatus pending yang dapat dibayar' });
 
     if (req.file) {
       await optimizeImage(req.file);
@@ -953,7 +978,7 @@ app.post('/api/payments', authenticateToken, upload.single('proofFile'), async (
     const payment = await prisma.payment.create({
       data: {
         bookingId: parseInt(bookingId),
-        amount: parseFloat(amount),
+        amount: amountVal,
         method,
         proofUrl,
         status: 'pending_verification'
@@ -966,7 +991,7 @@ app.post('/api/payments', authenticateToken, upload.single('proofFile'), async (
 app.get('/api/payments', authenticateToken, isAdmin, async (req, res) => {
   try {
     const payments = await prisma.payment.findMany({
-      include: { booking: { include: { user: true, trip: true } } },
+      include: { booking: { include: { user: { select: safeUserSelect }, trip: true } } },
       orderBy: { createdAt: 'desc' }
     });
     res.json(payments);
@@ -975,7 +1000,10 @@ app.get('/api/payments', authenticateToken, isAdmin, async (req, res) => {
 
 app.put('/api/payments/:id/verify', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { status } = req.body; 
+    const { status } = req.body;
+    if (!['paid', 'rejected', 'pending_verification'].includes(status)) {
+      return res.status(400).json({ error: 'Status verifikasi pembayaran tidak valid.' });
+    }
     
     const payment = await prisma.payment.update({
       where: { id: parseInt(req.params.id) },
@@ -1545,7 +1573,7 @@ app.get('/api/admin/payment-methods', authenticateToken, isAdmin, async (req, re
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
+app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction } = req.body;
     let imageUrl = null;
@@ -1571,7 +1599,7 @@ app.post('/api/admin/payment-methods', authenticateToken, isSuperAdmin, upload.a
   } catch (error) { res.status(400).json({ error: error.message }); }
 });
 
-app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.array('imageFiles', 5), async (req, res) => {
+app.put('/api/admin/payment-methods/:id', authenticateToken, isSuperAdmin, upload.single('imageFile'), async (req, res) => {
   try {
     const { name, type, accountName, accountNo, instruction, isActive } = req.body;
     let data = {};
